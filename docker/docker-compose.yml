@@ -1,0 +1,78 @@
+version: '3.9'
+
+# Dice&Soup Docker Compose
+# 包含两个服务：
+#   server  — 主程序（Node.js）
+#   napcat  — QQ 接入层（NapCat，独立进程）
+#
+# 快速启动：
+#   1. 复制 .env.example 为 .env，填写必要配置
+#   2. docker compose up -d
+#   3. 访问 http://localhost:3000 进入管理后台
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: docker/server/Dockerfile
+    container_name: dice-soup-server
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-3000}:3000"       # Web 管理后台
+      - "${ONEBOT_WS_PORT:-6700}:6700"  # OneBot 反向 WS（NapCat 连入）
+    volumes:
+      - dice-soup-data:/app/data        # 持久化数据（SQLite DB + 日志）
+    environment:
+      - NODE_ENV=production
+      - HTTP_PORT=3000
+      - DB_PATH=/app/data/dice-soup.db
+      - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET}
+      - ONEBOT_WS_PORT=6700
+      - ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN}
+      # LLM API Keys（选填）
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    depends_on:
+      - napcat
+    networks:
+      - dice-soup-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  napcat:
+    # 使用官方 NapCat Docker 镜像
+    # 更多配置见：https://napneko.github.io/zh-CN/guide/docker
+    image: mlikiowa/napcat-docker:latest
+    container_name: dice-soup-napcat
+    restart: unless-stopped
+    environment:
+      # QQ 号，需要与实际账号一致
+      - ACCOUNT=${QQ_ACCOUNT}
+      # NapCat 配置目录
+      - NAPCAT_CONFIG_DIR=/napcat/config
+    volumes:
+      - napcat-data:/napcat/data          # QQ 登录数据（持久化避免重复扫码）
+      - ./napcat-config:/napcat/config    # NapCat 配置文件目录（含 onebot11 ws 配置）
+    ports:
+      - "6099:6099"                       # NapCat WebUI（可选，扫码登录用）
+    networks:
+      - dice-soup-net
+    # 注意：首次启动需要扫码登录 QQ
+    # 访问 http://localhost:6099 完成登录
+
+volumes:
+  dice-soup-data:
+    driver: local
+  napcat-data:
+    driver: local
+
+networks:
+  dice-soup-net:
+    driver: bridge

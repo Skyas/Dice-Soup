@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "paths": {
+      "@dice-soup/shared-types": ["../../packages/shared-types/src"],
+      "@dice-soup/logger": ["../../packages/logger/src"],
+      "@dice-soup/onebot-client": ["../../packages/onebot-client/src"],
+      "@dice-soup/security": ["../../packages/security/src"]
+    }
+  },
+  "references": [
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/logger" },
+    { "path": "../../packages/onebot-client" },
+    { "path": "../../packages/security" }
+  ],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

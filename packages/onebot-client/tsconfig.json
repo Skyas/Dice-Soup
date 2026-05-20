@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "paths": {
+      "@dice-soup/shared-types": ["../../packages/shared-types/src"],
+      "@dice-soup/logger": ["../../packages/logger/src"]
+    }
+  },
+  "references": [
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/logger" }
+  ],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "paths": {
+      "@dice-soup/shared-types": ["../../packages/shared-types/src"]
+    }
+  },
+  "references": [{ "path": "../../packages/shared-types" }],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

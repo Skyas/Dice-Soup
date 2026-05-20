@@ -1,0 +1,24 @@
+{
+  "network": {
+    "httpServers": [],
+    "httpClients": [],
+    "websocketServers": [],
+    "websocketClients": [
+      {
+        "name": "dice-soup",
+        "enable": true,
+        "url": "ws://server:6700/onebot",
+        "heartInterval": 30000,
+        "accessToken": "${ONEBOT_ACCESS_TOKEN}",
+        "reconnectInterval": 3000,
+        "messagePostFormat": "array",
+        "reportSelfMessage": false,
+        "token": "${ONEBOT_ACCESS_TOKEN}"
+      }
+    ],
+    "plugins": []
+  },
+  "musicSignUrl": "",
+  "enableLocalFile2Url": false,
+  "parseMultMsg": false
+}

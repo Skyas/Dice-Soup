@@ -1,0 +1,29 @@
+{
+  "name": "@dice-soup/onebot-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-written OneBot v11 reverse WebSocket client. Zero AGPL dependencies. MIT licensed.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.5.11",
+    "typescript": "^5.5.2",
+    "vitest": "^1.6.0"
+  },
+  "peerDependencies": {
+    "@dice-soup/shared-types": "workspace:*",
+    "@dice-soup/logger": "workspace:*"
+  }
+}

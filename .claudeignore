@@ -1,0 +1,74 @@
+# 依赖目录（最大 token 消耗来源）
+node_modules/
+packages/*/node_modules/
+
+# 构建产物
+.next/
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Bun / Node 缓存
+.bun/
+
+# 日志文件
+*.log
+logs/
+server-logs/
+
+# Docker 数据卷（持久化数据，非代码）
+postgres-data/
+redis-data/
+napcat-data/
+napcat-config/
+
+# Git
+.git/
+.gitattributes
+
+# 锁文件（体积大，对理解代码帮助有限）
+bun.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 环境变量与敏感配置
+.env
+.env.*
+!.env.example
+
+# 二进制/媒体文件
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.mp4
+*.mp3
+*.woff
+*.woff2
+*.ttf
+*.eot
+
+# 文档（如需分析可注释掉）
+docs/
+
+# 测试脚本产生的临时文件
+coverage/
+.nyc_output/
+
+# IDE 配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS 文件
+.DS_Store
+Thumbs.db
+
+# 计划文件
+.kimi/
