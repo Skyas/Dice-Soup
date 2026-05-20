@@ -8,14 +8,16 @@
       "@dice-soup/shared-types": ["../../packages/shared-types/src"],
       "@dice-soup/logger": ["../../packages/logger/src"],
       "@dice-soup/onebot-client": ["../../packages/onebot-client/src"],
-      "@dice-soup/security": ["../../packages/security/src"]
+      "@dice-soup/security": ["../../packages/security/src"],
+      "@dice-soup/llm-router": ["../../packages/llm-router/src"]
     }
   },
   "references": [
     { "path": "../../packages/shared-types" },
     { "path": "../../packages/logger" },
     { "path": "../../packages/onebot-client" },
-    { "path": "../../packages/security" }
+    { "path": "../../packages/security" },
+    { "path": "../../packages/llm-router" }
   ],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

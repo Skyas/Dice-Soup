@@ -1,0 +1,24 @@
+{
+  "name": "@dice-soup/llm-router",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LLM 路由层：多 Provider 管理、任务路由、限流、结构化输出验证",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "openai": "^4.52.0",
+    "zod": "^3.23.8",
+    "@dice-soup/shared-types": "workspace:*",
+    "@dice-soup/logger": "workspace:*",
+    "@dice-soup/security": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.2",
+    "@types/node": "^20.14.0"
+  }
+}

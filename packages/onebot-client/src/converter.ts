@@ -118,8 +118,9 @@ export function convertOutboundSegments(segments: OutgoingSegment[]): OneBotSegm
             return { type: 'image', data: { file: `base64://${source.data}` } };
           case 'file':
             return { type: 'image', data: { file: `file:///${source.path}` } };
+          default:
+            throw new Error(`[converter] 未知图片来源: ${(source as { kind: string }).kind}`);
         }
-        break;
       }
 
       case 'reply':

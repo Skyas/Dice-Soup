@@ -49,6 +49,7 @@ coverage/
 # ── 上传/生成文件 ────────────────────────────────────────────
 uploads/
 generated/
+docs/
 
 # ── Docker 本地覆盖 ──────────────────────────────────────────
 docker-compose.override.yml
