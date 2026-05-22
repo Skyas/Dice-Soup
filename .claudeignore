@@ -15,6 +15,8 @@ packages/*/node_modules/
 # 构建产物
 # ────────────────────────────────────────
 dist/
+apps/*/dist/
+packages/*/dist/
 build/
 out/
 *.tsbuildinfo
@@ -53,6 +55,7 @@ temp/
 # Drizzle 迁移 snapshot（自动生成，体积随版本增长）
 # 保留：drizzle/*.sql（迁移 SQL 本身对理解 schema 演化很重要）
 drizzle/meta/
+drizzle/_journal.json
 
 # ────────────────────────────────────────
 # 日志

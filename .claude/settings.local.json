@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Select-String \"\\\\.env\")",
+      "Bash(pnpm --filter @dice-soup/llm-router build)",
+      "Bash(pnpm --filter @dice-soup/server build)",
+      "Bash(DEEPSEEK_API_KEY=sk-c3233f0a339c4cd68a53105c4aadbb45 pnpm vitest run packages/llm-router/src/__tests__/llm-router.test.ts)"
+    ]
+  }
+}
