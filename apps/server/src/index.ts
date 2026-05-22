@@ -53,7 +53,7 @@ async function main(): Promise<void> {
 
   // ── 3. Bootstrap DI 容器 ─────────────────────────────────────────────────
 
-  const { configService, auditService, oneBotAdapter, commandRouter } =
+  const { configService, auditService, oneBotAdapter, commandRouter, soupService, llmRouter } =
     await bootstrap();
 
   // ── 4. 越狱检测器（从配置读关键词） ─────────────────────────────────────
@@ -87,6 +87,8 @@ async function main(): Promise<void> {
     configService,
     auditService,
     oneBotAdapter,
+    soupService,
+    llmRouter,
     jwtSecret,
     isDev,
     port: httpPort,

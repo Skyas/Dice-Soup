@@ -16,9 +16,12 @@ import { healthRoutes } from './routes/health';
 import { adminAuthRoutes } from './routes/admin/auth';
 import { adminLogsRoutes } from './routes/admin/logs';
 import { adminConfigRoutes } from './routes/admin/config';
+import { adminPuzzlesRoutes } from './routes/admin/puzzles';
 import type { ConfigService } from './config/config-service';
 import type { AuditService } from './services/audit-service';
 import type { OneBotAdapter } from './adapters/onebot-adapter';
+import type { SoupService } from './services/soup-service';
+import type { LLMRouter } from '@dice-soup/llm-router';
 
 const log = createLogger({ module: 'app' });
 
@@ -26,6 +29,8 @@ export interface AppOptions {
   configService: ConfigService;
   auditService: AuditService;
   oneBotAdapter: OneBotAdapter;
+  soupService: SoupService;
+  llmRouter: LLMRouter;
   jwtSecret: string;
   /** HTTP 监听端口，默认 3000 */
   port?: number;
@@ -35,7 +40,7 @@ export interface AppOptions {
 
 /** 构建并返回 Fastify 实例（未 listen） */
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
-  const { configService, auditService, oneBotAdapter, jwtSecret, isDev = false } = options;
+  const { configService, auditService, oneBotAdapter, soupService, llmRouter, jwtSecret, isDev = false } = options;
 
   const fastify = Fastify({
     // Fastify 内置 Pino；此处指向我们自己的 logger 不合适（两套输出）
@@ -126,6 +131,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
     // 配置中心
     await adminConfigRoutes(app, { configService, auditService });
+
+    // 题库管理
+    await adminPuzzlesRoutes(app, { soupService, llmRouter });
   });
 
   return fastify;

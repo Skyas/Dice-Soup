@@ -14,14 +14,15 @@ import type { ZodSchema } from 'zod';
  * 新增任务类型时同步更新 config_items 的 llm.task_routing 默认配置。
  */
 export type TaskType =
-  | 'soup_judge'      // 海龟汤：是/否/无关/部分正确 判定
-  | 'soup_restore'    // 海龟汤：还原判定
-  | 'intent_parse'    // 自然语言意图识别 → 指令白名单
-  | 'dice_nl_parse'   // 自然语言 → 骰子表达式
-  | 'game_arbitrate'  // 桌游：仲裁与播报
-  | 'trpg_narrate'    // 跑团：叙事/场景描述
-  | 'trpg_npc'        // 跑团：NPC 对话
-  | 'summary';        // 游戏结束总结
+  | 'soup_judge'              // 海龟汤：是/否/无关/部分正确 判定
+  | 'soup_restore'            // 海龟汤：还原判定
+  | 'puzzle_extract_metadata' // 海龟汤：从题目提取 key_points 和 sensitive_words
+  | 'intent_parse'            // 自然语言意图识别 → 指令白名单
+  | 'dice_nl_parse'           // 自然语言 → 骰子表达式
+  | 'game_arbitrate'          // 桌游：仲裁与播报
+  | 'trpg_narrate'            // 跑团：叙事/场景描述
+  | 'trpg_npc'                // 跑团：NPC 对话
+  | 'summary';                // 游戏结束总结
 
 // ─── 模型 ID ────────────────────────────────────────────────────────────────
 

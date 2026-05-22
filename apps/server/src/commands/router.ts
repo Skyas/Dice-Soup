@@ -23,11 +23,16 @@ import type { AuditService } from '../services/audit-service';
 import type { CommandContext } from './types';
 import { CommandRegistry } from './registry';
 
-// ── 内置 handlers（第一阶段） ─────────────────────────────────────────────
+// ── 内置 handlers ─────────────────────────────────────────────────────────
 import { PingHandler } from './handlers/ping';
 import { HelpHandler } from './handlers/help';
 import { StatsHandler } from './handlers/stats';
 import { PlaceholderHandler } from './handlers/placeholder';
+import { SoupHandler } from './handlers/soup';
+import { StopHandler } from './handlers/stop';
+import type { SessionManager } from '../services/session-manager';
+import type { SoupService } from '../services/soup-service';
+import type { LLMRouter } from '@dice-soup/llm-router';
 
 const log = createLogger({ module: 'command-router' });
 
@@ -37,6 +42,9 @@ export class CommandRouter {
   private readonly userService: UserService;
   private readonly auditService: AuditService;
   private adapter?: PlatformAdapter;
+  private sessionManager?: SessionManager;
+  private soupService?: SoupService;
+  private llmRouter?: LLMRouter;
 
   constructor(
     configService: ConfigService,
@@ -47,6 +55,18 @@ export class CommandRouter {
     this.userService = userService;
     this.auditService = auditService;
     this.registerBuiltinHandlers();
+  }
+
+  /** 注入游戏服务（在 bootstrap 后调用） */
+  setGameServices(
+    sessionManager: SessionManager,
+    soupService: SoupService,
+    llmRouter: LLMRouter,
+  ): void {
+    this.sessionManager = sessionManager;
+    this.soupService = soupService;
+    this.llmRouter = llmRouter;
+    this.registerGameHandlers();
   }
 
   /** 注入 PlatformAdapter（避免循环依赖，在 bootstrap 后调用） */
@@ -61,16 +81,19 @@ export class CommandRouter {
     this.registry.register(new HelpHandler(this.registry));
     this.registry.register(new StatsHandler());
 
-    // Phase 1 占位指令
+    // 其他游戏占位指令
     this.registry.register(PlaceholderHandler.make('r', ['roll'], '骰子功能', 3));
-    this.registry.register(PlaceholderHandler.make('soup.start', ['soup'], '海龟汤游戏', 2));
     this.registry.register(PlaceholderHandler.make('avalon.start', ['avalon'], '阿瓦隆桌游', 3));
     this.registry.register(PlaceholderHandler.make('undercover.start', ['undercover', '卧底'], '谁是卧底桌游', 3));
     this.registry.register(PlaceholderHandler.make('coc.start', ['coc'], '跑团（CoC 7th）', 4));
     this.registry.register(PlaceholderHandler.make('card.show', ['card'], '角色卡查询', 4));
     this.registry.register(PlaceholderHandler.make('module.upload', ['module'], '模组上传', 4));
-    this.registry.register(PlaceholderHandler.make('soup.submit', [], '海龟汤投稿', 2));
-    this.registry.register(PlaceholderHandler.make('stop', [], '结束当前会话', 2));
+  }
+
+  private registerGameHandlers(): void {
+    if (!this.sessionManager || !this.soupService || !this.llmRouter) return;
+    this.registry.register(new SoupHandler(this.sessionManager, this.soupService, this.llmRouter));
+    this.registry.register(new StopHandler(this.sessionManager));
   }
 
   // ── 消息分发入口 ──────────────────────────────────────────────────────────

@@ -18,6 +18,8 @@ import {
 import { ConfigService } from '../config/config-service';
 import { AuditService } from '../services/audit-service';
 import { UserService } from '../services/user-service';
+import { SoupService } from '../services/soup-service';
+import { SessionManager } from '../services/session-manager';
 import { OneBotAdapter } from '../adapters/onebot-adapter';
 import { CommandRouter } from '../commands/router';
 import { getDatabase } from '../db/client';
@@ -36,6 +38,8 @@ export async function bootstrap(): Promise<{
   configService: ConfigService;
   auditService: AuditService;
   userService: UserService;
+  soupService: SoupService;
+  sessionManager: SessionManager;
   oneBotClient: OneBotClient;
   oneBotAdapter: OneBotAdapter;
   commandRouter: CommandRouter;
@@ -55,6 +59,14 @@ export async function bootstrap(): Promise<{
   // ── 3. UserService ────────────────────────────────────────────────────────
   const userService = new UserService(getDatabase());
   container.registerInstance(UserService, userService);
+
+  // ── 3b. SoupService ───────────────────────────────────────────────────────
+  const soupService = new SoupService(getDatabase());
+  container.registerInstance(SoupService, soupService);
+
+  // ── 3c. SessionManager ────────────────────────────────────────────────────
+  const sessionManager = new SessionManager(getDatabase());
+  container.registerInstance(SessionManager, sessionManager);
 
   // ── 4. OneBotClient（从配置读端口 + token） ───────────────────────────────
   // onebot.ws_port：非敏感，从 config_items 读（§1.11）
@@ -94,12 +106,17 @@ export async function bootstrap(): Promise<{
     log.info('[di] llm.task_routing 热更新已同步到 LLMRouter');
   });
 
+  // ── 注入游戏服务到 CommandRouter ──────────────────────────────────────────
+  commandRouter.setGameServices(sessionManager, soupService, llmRouter);
+
   log.info('DI container ready');
 
   return {
     configService,
     auditService,
     userService,
+    soupService,
+    sessionManager,
     oneBotClient,
     oneBotAdapter,
     commandRouter,
