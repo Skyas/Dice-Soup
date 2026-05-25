@@ -2,20 +2,20 @@
  * @module commands/handlers/stats
  * .stats 指令 — 查看个人统计名片。
  *
- * Phase 1 行为：
- * - 未建档用户 → 返回"你还未参加过游戏"，不触发建档（§1.3 M9）
- * - 已建档用户 → 返回最小画像（QQ + 加入日期 + "更多数据待解锁"提示）
- *
- * Phase 2+ 行为：接入 card-renderer，返回名片图片。
+ * 查询 soup_play_records 展示真实战绩；
+ * 未参与游戏的用户给出"未建档"提示。
  */
 
 import { createLogger } from '@dice-soup/logger';
 import type { CommandContext, CommandHandler } from '../types';
+import type { SoupService } from '../../services/soup-service';
 
 const log = createLogger({ module: 'cmd:stats' });
 
-/** 格式化 Unix ms 为可读日期 */
-function formatDate(ms: number): string {
+/** 格式化 Unix 秒/毫秒 时间戳为可读日期 */
+function formatDate(ts: number): string {
+  // createdAt / lastSeenAt 可能是秒或毫秒，统一转毫秒
+  const ms = ts < 1e12 ? ts * 1000 : ts;
   return new Date(ms).toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'long',
@@ -37,18 +37,21 @@ export class StatsHandler implements CommandHandler {
     rateLimit: { per: 'user_room' as const, n: 1, window: '1m' },
   };
 
+  constructor(private readonly soupService: SoupService) {}
+
   async execute(ctx: CommandContext): Promise<void> {
     log.info({ senderQQ: ctx.senderQQ }, '[stats] 查询个人统计');
 
     const user = await ctx.userService.findUser(ctx.senderQQ);
 
     if (!user) {
-      // 未建档：不创建用户，直接返回提示（§1.3 M9）
       await ctx.reply('📊 你还未参加过游戏，快去开一局试试吧！');
       return;
     }
 
-    // Phase 1：最小画像（无游戏数据）
+    // 查询真实海龟汤战绩
+    const stats = await this.soupService.getUserSoupStats(ctx.senderQQ);
+
     const lines = [
       `📊 ${user.displayName} 的游戏档案`,
       `──────────────────────`,
@@ -56,11 +59,21 @@ export class StatsHandler implements CommandHandler {
       `📅 加入日期：${formatDate(user.createdAt)}`,
       `🕐 最近在线：${formatDate(user.lastSeenAt)}`,
       ``,
-      `🎮 游戏数据：更多数据将在各游戏模块开放后解锁`,
-      `🏆 称号：暂无（等待游戏数据积累）`,
-      ``,
-      `💡 提示：参与游戏后此处将显示详细战绩`,
     ];
+
+    if (stats.totalGames === 0) {
+      lines.push(`🎮 海龟汤：尚未完成任何对局`);
+    } else {
+      const winRate = stats.totalGames > 0 ? Math.round((stats.wins / stats.totalGames) * 100) : 0;
+      lines.push(`🎮 海龟汤战绩：`);
+      lines.push(`  总对局：${stats.totalGames}局（通关 ${stats.wins} / 放弃 ${stats.giveups}）`);
+      lines.push(`  通关率：${winRate}%`);
+      lines.push(`  平均贡献度：${stats.avgScore.toFixed(1)}分`);
+      lines.push(`  累计突破：${stats.totalBreakthroughs}次 / 累计提问：${stats.totalQuestions}次`);
+    }
+
+    lines.push(``);
+    lines.push(`🏆 称号：${stats.wins >= 10 ? '🔍 资深侦探' : stats.wins >= 3 ? '🐢 汤道入门' : '暂无（等待游戏数据积累）'}`);
 
     await ctx.reply(lines.join('\n'));
   }

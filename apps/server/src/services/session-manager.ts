@@ -68,7 +68,16 @@ export class SessionManager {
       // 用户级互斥检查
       const userSession = await this.getActiveSessionByUser(initiatorQQ);
       if (userSession) {
-        return { ok: false as const, reason: '你已在另一场游戏中，请先结束当前游戏' };
+        // 查出所在频道，方便玩家找到那场游戏
+        const roomRows = await this.db
+          .select({ channelId: rooms.channelId })
+          .from(rooms)
+          .where(eq(rooms.id, userSession.roomId))
+          .limit(1);
+        const channelId = roomRows[0]?.channelId ?? '';
+        const isGroup = channelId && !channelId.startsWith('dm_');
+        const hint = isGroup ? `（群 ${channelId}）` : '';
+        return { ok: false as const, reason: `你已在另一场游戏中${hint}，请先结束当前游戏再开新局` };
       }
 
       const now = Math.floor(Date.now() / 1000);
@@ -173,12 +182,24 @@ export class SessionManager {
       .set(updateData as any)
       .where(eq(gameSessions.id, sessionId));
 
-    // 同步 session_members.session_state
-    if (!['ended', 'aborted'].includes(newState)) {
+    // 同步 session_members
+    if (['ended', 'aborted'].includes(newState)) {
+      // 终态：释放用户级互斥锁（设置 left_at + 更新 session_state）
+      // 这样 uq_members_user_active 部分索引不再覆盖该记录，用户可以开新局
+      await this.db
+        .update(sessionMembers)
+        .set({ sessionState: newState, leftAt: now })
+        .where(
+          and(
+            eq(sessionMembers.sessionId, sessionId),
+            sql`${sessionMembers.leftAt} IS NULL`,
+          ),
+        );
+    } else {
       await this.db
         .update(sessionMembers)
         .set({ sessionState: newState })
-        .where(and(eq(sessionMembers.sessionId, sessionId)));
+        .where(eq(sessionMembers.sessionId, sessionId));
     }
 
     log.info({ sessionId, newState }, '[session-manager] 状态转换');
@@ -280,6 +301,65 @@ export class SessionManager {
 
     if (!memberRows[0]) return null;
     return this.getSessionById(memberRows[0].sessionId);
+  }
+
+  /**
+   * 清理过期活跃会话（服务重启 / 定期安全扫描）。
+   * 将所有 lastActivityAt 早于 maxIdleSeconds 前的活跃会话强制 abort 并释放用户锁。
+   * 同时修复"孤儿成员锁"——session 已 ended/aborted 但 session_members.left_at 仍为 NULL 的记录。
+   */
+  async cleanupStaleSessions(maxIdleSeconds = 7200): Promise<number> {
+    const now = Math.floor(Date.now() / 1000);
+    const cutoff = now - maxIdleSeconds;
+    let cleaned = 0;
+
+    // ── 1. 过期活跃会话 ─────────────────────────────────────────────────────
+    const staleSessions = await this.db
+      .select({ id: gameSessions.id })
+      .from(gameSessions)
+      .where(
+        and(
+          inArray(gameSessions.state, ['setup', 'running', 'restoring', 'pending']),
+          sql`${gameSessions.lastActivityAt} < ${cutoff}`,
+        ),
+      );
+
+    if (staleSessions.length > 0) {
+      const staleIds = staleSessions.map((s) => s.id);
+
+      await this.db
+        .update(gameSessions)
+        .set({ state: 'aborted', endedAt: now, endReason: 'server_restart_stale' } as any)
+        .where(inArray(gameSessions.id, staleIds));
+
+      await this.db
+        .update(sessionMembers)
+        .set({ sessionState: 'aborted', leftAt: now })
+        .where(
+          and(
+            inArray(sessionMembers.sessionId, staleIds),
+            sql`${sessionMembers.leftAt} IS NULL`,
+          ),
+        );
+
+      cleaned += staleSessions.length;
+      log.info({ count: staleSessions.length, cutoffAgo: `${maxIdleSeconds / 60}min` }, '[session-manager] 清理过期会话');
+    }
+
+    // ── 2. 孤儿成员锁（session 已结束，但 left_at 仍为 NULL） ───────────────
+    // 修复 transitionState 历史 bug 遗留的 dangling 记录
+    await this.db
+      .update(sessionMembers)
+      .set({ sessionState: 'aborted', leftAt: now })
+      .where(
+        and(
+          sql`${sessionMembers.leftAt} IS NULL`,
+          inArray(sessionMembers.sessionState, ['setup', 'running', 'restoring', 'pending']),
+          sql`${sessionMembers.sessionId} IN (SELECT id FROM game_sessions WHERE state IN ('ended', 'aborted'))`,
+        ),
+      );
+
+    return cleaned;
   }
 
   async getRoomIdByGroupId(groupId: string, platform: string): Promise<string | null> {

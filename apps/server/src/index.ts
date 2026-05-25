@@ -53,8 +53,24 @@ async function main(): Promise<void> {
 
   // ── 3. Bootstrap DI 容器 ─────────────────────────────────────────────────
 
-  const { configService, auditService, oneBotAdapter, commandRouter, soupService, llmRouter } =
+  const { configService, auditService, oneBotAdapter, commandRouter, soupService, llmRouter, sessionManager } =
     await bootstrap();
+
+  // ── 3a. 清理残留过期会话 + 孤儿成员锁（服务重启后防止用户被锁） ──────────
+  const idleTimeoutMin = configService.get<number>('soup.idle_timeout_minutes') ?? 45;
+  const cleanedCount = await sessionManager.cleanupStaleSessions(idleTimeoutMin * 60);
+  if (cleanedCount > 0) {
+    log.info({ cleanedCount }, '[startup] 已清理过期残留会话');
+  }
+
+  // ── 3b. 定期安全扫描（每 10 分钟，防止内存计时器失效时会话永久残留） ───────
+  setInterval(async () => {
+    try {
+      await sessionManager.cleanupStaleSessions(idleTimeoutMin * 60);
+    } catch (e) {
+      log.error({ err: e }, '[sweep] 定期清理过期会话失败');
+    }
+  }, 10 * 60 * 1000);
 
   // ── 4. 越狱检测器（从配置读关键词） ─────────────────────────────────────
 
@@ -119,7 +135,8 @@ async function main(): Promise<void> {
       .map((s) => s.text)
       .join('');
 
-    const isCommand = text.trim().startsWith(configService.getCommandPrefix());
+    const trimmedText = text.trim();
+    const isCommand = trimmedText.startsWith(configService.getCommandPrefix()) || trimmedText.startsWith('。');
 
     if (!isCommand) {
       const verdict = jailbreakDetector.check(text, {

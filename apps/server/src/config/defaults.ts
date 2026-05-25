@@ -151,9 +151,16 @@ export const DEFAULT_CONFIGS: DefaultConfig[] = [
   // ── 海龟汤游戏（Phase 2） ──
   {
     key: 'soup.idle_timeout_minutes',
-    value: 30,
+    value: 45,
     valueType: 'number',
     description: 'running 阶段无活动超时（分钟）',
+    category: 'game',
+  },
+  {
+    key: 'soup.restore_timeout_minutes',
+    value: 5,
+    valueType: 'number',
+    description: 'restore 还原判定最长等待时间（分钟），超时视为失败',
     category: 'game',
   },
   {
@@ -210,6 +217,13 @@ export const DEFAULT_CONFIGS: DefaultConfig[] = [
     value: 0.5,
     valueType: 'number',
     description: '0 突破玩家还原奖金折扣系数',
+    category: 'game',
+  },
+  {
+    key: 'soup.vip_qq_list',
+    value: ['897437055'],
+    valueType: 'array',
+    description: 'VIP QQ 号列表（可重复游玩同题、私聊开局等特权）',
     category: 'game',
   },
 

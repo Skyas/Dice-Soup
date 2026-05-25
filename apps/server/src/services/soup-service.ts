@@ -322,6 +322,36 @@ export class SoupService {
     });
   }
 
+  // ── 玩家战绩统计 ─────────────────────────────────────────────────────────────
+
+  async getUserSoupStats(userQq: string): Promise<{
+    totalGames: number;
+    wins: number;
+    giveups: number;
+    avgScore: number;
+    totalBreakthroughs: number;
+    totalQuestions: number;
+  }> {
+    const records = await this.db
+      .select()
+      .from(soupPlayRecords)
+      .where(eq(soupPlayRecords.userQq, userQq));
+
+    if (records.length === 0) {
+      return { totalGames: 0, wins: 0, giveups: 0, avgScore: 0, totalBreakthroughs: 0, totalQuestions: 0 };
+    }
+
+    const totalGames = records.length;
+    const wins = records.filter((r) => r.result === 'win').length;
+    const giveups = records.filter((r) => r.result === 'giveup').length;
+    const totalScore = records.reduce((sum, r) => sum + (r.contributionScore ?? 0), 0);
+    const avgScore = totalScore / totalGames / 100; // contributionScore 存储时 × 100
+    const totalBreakthroughs = records.reduce((sum, r) => sum + r.breakthroughCount, 0);
+    const totalQuestions = records.reduce((sum, r) => sum + r.questionsAsked, 0);
+
+    return { totalGames, wins, giveups, avgScore, totalBreakthroughs, totalQuestions };
+  }
+
   // ── 内部工具 ────────────────────────────────────────────────────────────────
 
   private rowToData(row: SoupPuzzle): SoupPuzzleData {

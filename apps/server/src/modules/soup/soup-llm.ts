@@ -86,10 +86,24 @@ ${kpXml}
 </puzzle>
 
 判定规则：
-- verdict=yes：提问内容与真相一致
-- verdict=no：提问内容与真相矛盾
-- verdict=irrelevant：提问与真相无关
-- verdict=partial：提问部分正确
+- verdict=yes：提问内容与真相某个事实点完全吻合
+- verdict=no：提问与真相中的事实相矛盾，或真相中对应事实的答案是否定的
+- verdict=irrelevant：提问涉及的事物在真相中完全找不到任何对应，与案件毫不相关
+- verdict=partial：提问部分正确，但有部分与真相不符
+
+no 与 irrelevant 的核心区别（必须严格遵守）：
+- no：真相中存在与该提问相关的事实，但答案为否定。例：真相说"他因自责而自杀"，问"他是被人逼迫自杀的吗"→ 判 no（真相有自杀动机，动机是自责而非被逼）
+- irrelevant：提问涉及的事物与真相完全无关，真相中没有任何与该问题相关的内容。例：同题下问"他有没有养猫"→ 判 irrelevant
+
+判定步骤（必须按此顺序）：
+1. 先判断：真相中有没有与此提问相关的事实或情节？
+   - 有相关内容 → 答案是肯定吗？是则 yes/partial，否则 no
+   - 完全没有相关内容 → irrelevant
+
+⚠️ 重要约束：
+1. 只能基于真相字面内容判定，严禁推理、引申、联想
+2. 真相说明了动机/方式/关系时，问"是否是其他动机/方式/关系"→ 判 no，不要判 irrelevant
+3. 真相中"合谋隐瞒"≠"合谋杀害"，"意外死亡"≠"被杀"，此类必须判 no
 
 若提问命中任意 key_point 关键词且 verdict 为 yes/partial，在 matched_key_points 填入对应 id。
 
@@ -121,9 +135,10 @@ ${kpXml}
 - matched_key_point_ids：玩家还原中命中的 key_point id 列表
 - missing_critical_ids：critical=true 的 key_point 中未被命中的 id 列表
 - 应用层判定：coverage >= 0.7 且 missing_critical_ids 为空，则 passed=true
+- summary：给玩家看的简短反馈（不超过30字）。规则：绝对不能包含真相内容、不能透露关键要素具体内容。只能说覆盖程度和大致方向，如"思路有些接近，继续深入"或"关键要素还未涉及，继续提问"。
 
 必须以 JSON 格式回复：
-{"passed":false,"coverage":0.0,"matched_key_point_ids":[],"missing_critical_ids":[],"summary":""}`;
+{"passed":false,"coverage":0.0,"matched_key_point_ids":[],"missing_critical_ids":[],"summary":"继续提问，慢慢接近真相"}`;
 }
 
 // ── 泄露检测（K7 / §3.3） ────────────────────────────────────────────────────
@@ -157,6 +172,7 @@ export async function callSoupJudge(
   userQQ: string,
   question: string,
   leakThreshold = 2,
+  onLeakDetected?: (hitWords: string[]) => Promise<void>,
 ): Promise<Result<SoupJudgeResult, AppError>> {
   // K5: 500字符截断
   const safeQuestion = question.slice(0, 500);
@@ -179,10 +195,11 @@ export async function callSoupJudge(
 
   const rawContent = result.value.content;
 
-  // 泄露检测（K7）
+  // 泄露检测（K7 / §3.3.1）
   const { leaked, hitWords } = detectLeak(rawContent, puzzle.sensitiveWords, leakThreshold);
   if (leaked) {
     log.warn({ userQQ, hitWords, task: 'soup_judge' }, '[soup-llm] 输出泄露检测命中，降级为 irrelevant');
+    if (onLeakDetected) await onLeakDetected(hitWords).catch(() => {});
     return ok({
       verdict: 'irrelevant' as const,
       internal_reason: 'LEAK_BLOCKED',
@@ -215,6 +232,7 @@ export async function callSoupRestore(
   userQQ: string,
   restoreText: string,
   leakThreshold = 2,
+  onLeakDetected?: (hitWords: string[]) => Promise<void>,
 ): Promise<Result<SoupRestoreResult & { appPassed: boolean }, AppError>> {
   const safeRestore = restoreText.slice(0, 1000);
   const systemPrompt = buildRestoreSystemPrompt(puzzle);
@@ -235,10 +253,11 @@ export async function callSoupRestore(
 
   const rawContent = result.value.content;
 
-  // 泄露检测
+  // 泄露检测（K7 / §3.3.1）
   const { leaked, hitWords } = detectLeak(rawContent, puzzle.sensitiveWords, leakThreshold);
   if (leaked) {
     log.warn({ userQQ, hitWords, task: 'soup_restore' }, '[soup-llm] 还原输出泄露检测命中');
+    if (onLeakDetected) await onLeakDetected(hitWords).catch(() => {});
     return ok({
       passed: false,
       coverage: 0,
@@ -322,17 +341,37 @@ export async function callSummary(
   scores: Array<{ qq: string; displayName: string; score: number; breakthroughCount: number }>,
   won: boolean,
   durationSeconds: number,
+  questionLog: Array<{ qq: string; verdict: string; matchedKeyPoints: string[] }>,
+  playerNames: Record<string, string>,
 ): Promise<SummaryResult> {
   const scoreText = scores
     .map((s) => `${s.displayName}：${s.score.toFixed(1)}分（突破×${s.breakthroughCount}）`)
     .join('、');
 
-  const systemPrompt = `你是海龟汤游戏主持人，请对刚结束的游戏给出一段简短精彩的点评（100字以内），并选出最多3个高光时刻。
+  // 提问历史摘要（最近 30 条，帮助 LLM 理解实际游玩过程）
+  const verdictMap: Record<string, string> = { yes: '✅是', no: '❌否', partial: '〜部分', irrelevant: '↩无关' };
+  const logLines = questionLog.slice(-30).map((q, i) => {
+    const name = playerNames[q.qq] ?? q.qq;
+    const v = verdictMap[q.verdict] ?? q.verdict;
+    const kp = q.matchedKeyPoints.length > 0 ? `（触发线索）` : '';
+    return `Q${i + 1} [${name}]: ${v}${kp}`;
+  }).join('\n');
+
+  const systemPrompt = `你是海龟汤游戏主持人，请基于以下真实游玩数据，给出一段简短精彩的点评（100字以内），并选出最多3个高光时刻。
 
 题目：《${puzzle.title}》
+汤面：${puzzle.surface}
 结果：${won ? '通关成功' : '未通关'}
 用时：${Math.floor(durationSeconds / 60)}分${durationSeconds % 60}秒
 玩家得分：${scoreText}
+
+本局提问记录（共${questionLog.length}问）：
+${logLines || '（无提问记录）'}
+
+要求：
+- 点评必须基于上面的真实提问记录，不要编造过程
+- 选出的高光时刻须对应具体玩家和真实问题节点
+- 不要透露汤底真相内容
 
 以 JSON 格式回复：{"overall_comment":"...","highlights":[{"qq":"...","moment":"..."}]}`;
 

@@ -8,7 +8,12 @@
       "Bash(pnpm --filter @dice-soup/server typecheck)",
       "Bash(pnpm --filter @dice-soup/server dev)",
       "Bash(node -e ' *)",
-      "Bash(pnpm --filter @dice-soup/server test)"
+      "Bash(pnpm --filter @dice-soup/server test)",
+      "Bash(pnpm --filter @dice-soup/web-admin build)",
+      "PowerShell(netstat -ano)",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -eq \"\" } | Stop-Process -Force -ErrorAction SilentlyContinue; Write-Host \"done\")",
+      "Bash(pnpm --filter @dice-soup/server tsc --noEmit)",
+      "Bash(npx tsc *)"
     ]
   }
 }

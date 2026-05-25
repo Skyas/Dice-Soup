@@ -21,7 +21,7 @@ import {
   calcFinalScores,
   assertInvariant,
 } from '../../modules/soup/contribution';
-import { callSoupJudge, callSoupRestore, callSummary } from '../../modules/soup/soup-llm';
+import { callSoupJudge, callSoupRestore, callSummary, callExtractMetadata } from '../../modules/soup/soup-llm';
 
 const log = createLogger({ module: 'cmd:soup' });
 
@@ -50,6 +50,26 @@ export class SoupHandler implements CommandHandler {
     private readonly llmRouter: LLMRouter,
   ) {}
 
+  // ── VIP 工具 ──────────────────────────────────────────────────────────────
+
+  /** VIP 判断：QQ 在 soup.vip_qq_list 中 */
+  private isVip(ctx: CommandContext): boolean {
+    const list = ctx.configService.get<string[]>('soup.vip_qq_list') ?? [];
+    return list.map(String).includes(String(ctx.senderQQ));
+  }
+
+  /**
+   * 返回有效的群/房间 ID：
+   * - 群聊：直接返回 groupId
+   * - 私聊 VIP：返回 dm_<qq>（虚拟房间，单人专属）
+   * - 私聊非 VIP：返回 null
+   */
+  private getEffectiveGroupId(ctx: CommandContext): string | null {
+    if (ctx.groupId) return ctx.groupId;
+    if (this.isVip(ctx)) return `dm_${ctx.senderQQ}`;
+    return null;
+  }
+
   async execute(ctx: CommandContext): Promise<void> {
     const sub = ctx.args[0]?.toLowerCase() ?? '';
     const subRawArgs = ctx.rawArgs.slice(sub.length).trim();
@@ -62,6 +82,8 @@ export class SoupHandler implements CommandHandler {
       case 'hint': return this.handleHint(ctx);
       case 'restore': return this.handleRestore(ctx, subRawArgs);
       case 'giveup': return this.handleGiveup(ctx);
+      case 'end': return this.handleEnd(ctx);
+      case 'continue': return this.handleContinue(ctx);
       case 'change': return this.handleChange(ctx);
       case 'difficulty': return this.handleDifficulty(ctx, subRawArgs);
       case 'tags': return this.handleTags(ctx, subRawArgs);
@@ -80,8 +102,9 @@ export class SoupHandler implements CommandHandler {
   // ── start ─────────────────────────────────────────────────────────────────
 
   private async handleStart(ctx: CommandContext): Promise<void> {
-    if (!ctx.groupId) {
-      return ctx.reply('⚠️ 海龟汤只能在群里开局');
+    const effectiveGroupId = this.getEffectiveGroupId(ctx);
+    if (!effectiveGroupId) {
+      return ctx.reply('⚠️ 海龟汤只能在群里开局（VIP 可私聊开局）');
     }
 
     const ensured = await ctx.userService.ensureUserExists(ctx.senderQQ, ctx.senderName);
@@ -92,9 +115,10 @@ export class SoupHandler implements CommandHandler {
     const initialState = initialSoupState();
     initialState.contribution = initContributionState([ctx.senderQQ]);
     initialState.contribution.players[ctx.senderQQ].joinedAt = Math.floor(Date.now() / 1000);
+    initialState.playerNames[ctx.senderQQ] = ctx.senderName;
 
     const result = await this.sessionManager.createSession(
-      ctx.groupId,
+      effectiveGroupId,
       'qq',
       ctx.senderQQ,
       initialState as unknown as Record<string, unknown>,
@@ -105,20 +129,22 @@ export class SoupHandler implements CommandHandler {
     }
 
     const sessionId = result.sessionId;
-    log.info({ sessionId, senderQQ: ctx.senderQQ }, '[soup] 会话创建');
+    const isDM = !ctx.groupId;
+    log.info({ sessionId, senderQQ: ctx.senderQQ, isDM }, '[soup] 会话创建');
 
     // 注册 setup 超时（3 分钟）
     const setupTimeoutMs = (ctx.configService.get<number>('soup.setup_idle_minutes') ?? 3) * 60_000;
     this.sessionManager.registerActivityTimeout(sessionId, setupTimeoutMs, async () => {
-      await this.onSetupTimeout(sessionId, ctx.groupId!, ctx);
+      await this.onSetupTimeout(sessionId, effectiveGroupId, ctx);
     });
 
+    const dmHint = isDM ? '\n（私聊单人模式，.soup go 直接开始）' : '\n  • .soup join              其他人加入';
     await ctx.reply(
       `🐢 海龟汤！${ctx.senderName} 发起了一局游戏！\n` +
       `可选操作：\n` +
       `  • .soup difficulty <1-5>  设置难度\n` +
       `  • .soup tags <标签>       设置标签偏好\n` +
-      `  • .soup join              其他人加入\n` +
+      dmHint + '\n' +
       `  • .soup go                确认出题，开始游戏！\n` +
       `（3分钟内无操作将自动取消）`,
     );
@@ -147,6 +173,8 @@ export class SoupHandler implements CommandHandler {
 
     const snapshot = session.stateSnapshot as unknown as SoupRuntimeState;
     addPlayer(snapshot.contribution, ctx.senderQQ);
+    if (!snapshot.playerNames) snapshot.playerNames = {};
+    snapshot.playerNames[ctx.senderQQ] = ctx.senderName;
     this.sessionManager.saveSnapshot(session.id, snapshot as unknown as Record<string, unknown>);
 
     await ctx.reply(`👋 ${ctx.senderName} 加入游戏！当前 ${session.members.length + 1} 人`);
@@ -165,7 +193,7 @@ export class SoupHandler implements CommandHandler {
           .join('\n');
 
         await ctx.replyPrivate(
-          `🐢 《${puzzle.title}》\n\n` +
+          `🐢 当前进行中的游戏\n\n` +
           `【汤面】\n${puzzle.surface}\n\n` +
           `【近期提问记录】\n${historyLines || '（暂无）'}`,
         );
@@ -176,9 +204,10 @@ export class SoupHandler implements CommandHandler {
   // ── difficulty ────────────────────────────────────────────────────────────
 
   private async handleDifficulty(ctx: CommandContext, args: string): Promise<void> {
-    if (!ctx.groupId) return ctx.reply('⚠️ 请在群里使用此命令');
+    const effectiveGroupId = this.getEffectiveGroupId(ctx);
+    if (!effectiveGroupId) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
 
-    const roomId = await this.sessionManager.getRoomIdByGroupId(ctx.groupId, 'qq');
+    const roomId = await this.sessionManager.getRoomIdByGroupId(effectiveGroupId, 'qq');
     if (!roomId) return ctx.reply('⚠️ 当前群没有进行中的游戏');
 
     const session = await this.sessionManager.getActiveSessionByRoom(roomId);
@@ -205,9 +234,10 @@ export class SoupHandler implements CommandHandler {
   // ── tags ──────────────────────────────────────────────────────────────────
 
   private async handleTags(ctx: CommandContext, args: string): Promise<void> {
-    if (!ctx.groupId) return ctx.reply('⚠️ 请在群里使用此命令');
+    const effectiveGroupId = this.getEffectiveGroupId(ctx);
+    if (!effectiveGroupId) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
 
-    const roomId = await this.sessionManager.getRoomIdByGroupId(ctx.groupId, 'qq');
+    const roomId = await this.sessionManager.getRoomIdByGroupId(effectiveGroupId, 'qq');
     if (!roomId) return ctx.reply('⚠️ 当前群没有进行中的游戏');
 
     const session = await this.sessionManager.getActiveSessionByRoom(roomId);
@@ -229,9 +259,10 @@ export class SoupHandler implements CommandHandler {
   // ── go ────────────────────────────────────────────────────────────────────
 
   private async handleGo(ctx: CommandContext): Promise<void> {
-    if (!ctx.groupId) return ctx.reply('⚠️ 请在群里使用此命令');
+    const effectiveGroupId = this.getEffectiveGroupId(ctx);
+    if (!effectiveGroupId) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
 
-    const roomId = await this.sessionManager.getRoomIdByGroupId(ctx.groupId, 'qq');
+    const roomId = await this.sessionManager.getRoomIdByGroupId(effectiveGroupId, 'qq');
     if (!roomId) return ctx.reply('⚠️ 当前群没有进行中的游戏');
 
     const session = await this.sessionManager.getActiveSessionByRoom(roomId);
@@ -244,11 +275,13 @@ export class SoupHandler implements CommandHandler {
 
     const snapshot = session.stateSnapshot as unknown as SoupRuntimeState;
 
-    // 获取所有玩家已玩过的题目
+    // VIP 可重复游玩同题；普通玩家排除已玩题目
     const excludeIds = new Set<string>();
-    for (const qq of session.members) {
-      const played = await this.soupService.getPlayedPuzzleIds(qq);
-      played.forEach((id) => excludeIds.add(id));
+    if (!this.isVip(ctx)) {
+      for (const qq of session.members) {
+        const played = await this.soupService.getPlayedPuzzleIds(qq);
+        played.forEach((id) => excludeIds.add(id));
+      }
     }
 
     // 选题
@@ -268,7 +301,26 @@ export class SoupHandler implements CommandHandler {
       return;
     }
 
-    const puzzle = selectResult.value;
+    let puzzle = selectResult.value;
+
+    // §3.4.4 路径 C：若 metadata 未提取（keyPoints 为空），自动提取后开局
+    if (puzzle.keyPoints.length === 0 || puzzle.sensitiveWords.length === 0) {
+      log.info({ puzzleId: puzzle.id }, '[soup] 题目无 metadata，自动提取...');
+      await ctx.reply('🔍 正在分析题目元数据，请稍候...');
+      const metaResult = await callExtractMetadata(this.llmRouter, puzzle);
+      if (metaResult.ok) {
+        await this.soupService.updatePuzzle(puzzle.id, {
+          keyPoints: metaResult.value.key_points,
+          sensitiveWords: metaResult.value.sensitive_words,
+        });
+        const reloaded = await this.soupService.getPuzzleById(puzzle.id);
+        if (reloaded.ok) puzzle = reloaded.value;
+        log.info({ puzzleId: puzzle.id, kpCount: puzzle.keyPoints.length }, '[soup] metadata 提取完成');
+      } else {
+        log.warn({ puzzleId: puzzle.id }, '[soup] metadata 提取失败，使用空 keyPoints 继续');
+      }
+    }
+
     const now = Math.floor(Date.now() / 1000);
 
     // 更新快照
@@ -279,6 +331,10 @@ export class SoupHandler implements CommandHandler {
     snapshot.giveupVotes = [];
     snapshot.changeVotes = [];
     snapshot.givenHintIndices = [];
+    snapshot.inGracePeriod = false;
+    snapshot.restoringBy = null;
+    snapshot.restoringExpiresAt = null;
+    snapshot.directionRequestExpiresAt = null;
 
     this.sessionManager.clearActivityTimeout(session.id);
 
@@ -291,8 +347,9 @@ export class SoupHandler implements CommandHandler {
 
     await this.soupService.incrementPlayCount(puzzle.id);
 
-    // 注册活动超时（30 分钟）
-    const idleMs = (ctx.configService.get<number>('soup.idle_timeout_minutes') ?? 30) * 60_000;
+    // 注册活动超时（默认 45 分钟）
+    const idleTimeoutMin = ctx.configService.get<number>('soup.idle_timeout_minutes') ?? 45;
+    const idleMs = idleTimeoutMin * 60_000;
     this.sessionManager.registerActivityTimeout(session.id, idleMs, async () => {
       await this.onIdleTimeout(session.id, ctx.groupId!, puzzle, snapshot, ctx);
     });
@@ -300,18 +357,17 @@ export class SoupHandler implements CommandHandler {
     const diffStars = '★'.repeat(puzzle.difficulty) + '☆'.repeat(5 - puzzle.difficulty);
 
     await ctx.reply(
-      `🐢 【${puzzle.title}】\n` +
+      `🐢 游戏开始！\n` +
       `难度：${diffStars}\n` +
-      `${puzzle.tags.length > 0 ? `标签：${puzzle.tags.join(' ')}\n` : ''}` +
       `\n【汤面】\n${puzzle.surface}\n\n` +
-      `游戏开始！用 .soup ask <问题> 提问，用 .soup restore <答案> 还原真相。`,
+      `用 .soup ask <问题> 提问，用 .soup restore <答案> 还原真相。`,
     );
   }
 
   // ── ask ───────────────────────────────────────────────────────────────────
 
   private async handleAsk(ctx: CommandContext, question: string): Promise<void> {
-    if (!ctx.groupId) return ctx.reply('⚠️ 请在群里使用此命令');
+    if (!this.getEffectiveGroupId(ctx)) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
     if (!question.trim()) return ctx.reply('⚠️ 请输入问题，例如：.soup ask 凶手认识被害者吗？');
 
     const session = await this.getRunningSession(ctx);
@@ -320,7 +376,20 @@ export class SoupHandler implements CommandHandler {
     const snapshot = session.stateSnapshot as unknown as SoupRuntimeState;
 
     if (snapshot.phase === 'restoring') {
-      return ctx.reply('⏳ 还原进行中，请暂停提问');
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (snapshot.restoringExpiresAt && nowSec > snapshot.restoringExpiresAt) {
+        // 还原超时（服务重启后计时器丢失的情况），自动重置
+        snapshot.phase = 'running';
+        snapshot.restoringBy = null;
+        snapshot.restoringExpiresAt = null;
+        await this.sessionManager.transitionState(session.id, 'running', snapshot as unknown as Record<string, unknown>);
+        // 继续处理本次提问（fall through）
+      } else {
+        const restoreTimeoutMin = ctx.configService.get<number>('soup.restore_timeout_minutes') ?? 5;
+        const remainSec = snapshot.restoringExpiresAt ? Math.max(0, snapshot.restoringExpiresAt - nowSec) : restoreTimeoutMin * 60;
+        const remainMin = Math.ceil(remainSec / 60);
+        return ctx.reply(`⏳ 还原进行中，请暂停提问（约 ${remainMin} 分钟后自动解锁）`);
+      }
     }
     if (snapshot.phase !== 'running') {
       return ctx.reply('⚠️ 游戏尚未开始');
@@ -329,6 +398,10 @@ export class SoupHandler implements CommandHandler {
     if (!session.members.includes(ctx.senderQQ)) {
       return ctx.reply('⚠️ 请先加入游戏：.soup join');
     }
+
+    // 每次提问时刷新显示名称（群名片可能变化）
+    if (!snapshot.playerNames) snapshot.playerNames = {};
+    snapshot.playerNames[ctx.senderQQ] = ctx.senderName;
 
     const player = snapshot.contribution.players[ctx.senderQQ];
     const maxAsks = ctx.configService.get<number>('soup.max_asks_per_session') ?? 100;
@@ -349,6 +422,17 @@ export class SoupHandler implements CommandHandler {
       ctx.senderQQ,
       question,
       leakThreshold,
+      async (hitWords) => {
+        await ctx.auditService.log({
+          category: 'leak_intercept',
+          actor: ctx.senderQQ,
+          actorType: 'player',
+          action: 'LEAK_BLOCKED',
+          target: session.id,
+          severity: 'warning',
+          meta: { hitWords, task: 'soup_judge', sessionId: session.id },
+        });
+      },
     );
 
     if (!judgeResult.ok) {
@@ -381,12 +465,14 @@ export class SoupHandler implements CommandHandler {
       });
     }
 
+    // 宽限期结束（有新活动即退出宽限期）
+    snapshot.inGracePeriod = false;
     this.sessionManager.saveSnapshot(session.id, snapshot as unknown as Record<string, unknown>);
 
     // 重置活动计时器
-    const idleMs = (ctx.configService.get<number>('soup.idle_timeout_minutes') ?? 30) * 60_000;
+    const idleMs = (ctx.configService.get<number>('soup.idle_timeout_minutes') ?? 45) * 60_000;
     this.sessionManager.resetActivityTimer(session.id, idleMs, async () => {
-      await this.onIdleTimeout(session.id, ctx.groupId!, puzzle, snapshot, ctx);
+      await this.onIdleTimeout(session.id, this.getEffectiveGroupId(ctx) ?? '', puzzle, snapshot, ctx);
     });
 
     // 构建回复
@@ -409,7 +495,7 @@ export class SoupHandler implements CommandHandler {
   // ── hint ──────────────────────────────────────────────────────────────────
 
   private async handleHint(ctx: CommandContext): Promise<void> {
-    if (!ctx.groupId) return ctx.reply('⚠️ 请在群里使用此命令');
+    if (!this.getEffectiveGroupId(ctx)) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
 
     const session = await this.getRunningSession(ctx);
     if (!session) return;
@@ -458,52 +544,120 @@ export class SoupHandler implements CommandHandler {
   // ── restore ───────────────────────────────────────────────────────────────
 
   private async handleRestore(ctx: CommandContext, restoreText: string): Promise<void> {
-    if (!ctx.groupId) return ctx.reply('⚠️ 请在群里使用此命令');
+    if (!this.getEffectiveGroupId(ctx)) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
     if (!restoreText.trim()) return ctx.reply('⚠️ 请输入还原内容，例如：.soup restore 真相是...');
 
     const session = await this.getRunningSession(ctx);
     if (!session) return;
 
     const snapshot = session.stateSnapshot as unknown as SoupRuntimeState;
+
+    // restoring 阶段：给出明确反馈而不是泛用错误
+    if (snapshot.phase === 'restoring') {
+      const nowSec2 = Math.floor(Date.now() / 1000);
+      if (snapshot.restoringExpiresAt && nowSec2 > snapshot.restoringExpiresAt) {
+        // 超时了，重置后继续处理
+        snapshot.phase = 'running';
+        snapshot.restoringBy = null;
+        snapshot.restoringExpiresAt = null;
+        await this.sessionManager.transitionState(session.id, 'running', snapshot as unknown as Record<string, unknown>);
+      } else if (snapshot.restoringBy === ctx.senderQQ) {
+        return ctx.reply('⏳ 还原判定进行中，请稍等片刻...');
+      } else {
+        const restoreTimeoutMin2 = ctx.configService.get<number>('soup.restore_timeout_minutes') ?? 5;
+        const remainSec2 = snapshot.restoringExpiresAt
+          ? Math.max(0, snapshot.restoringExpiresAt - nowSec2)
+          : restoreTimeoutMin2 * 60;
+        const remainMin2 = Math.ceil(remainSec2 / 60);
+        return ctx.reply(`⏳ 有玩家正在还原，请暂停提问（约 ${remainMin2} 分钟后自动解锁）`);
+      }
+    }
+
     if (snapshot.phase !== 'running') return ctx.reply('⚠️ 游戏不在提问阶段');
     if (!session.members.includes(ctx.senderQQ)) return ctx.reply('⚠️ 请先加入游戏：.soup join');
 
-    // 设置 restoring 锁
+    const restoreTimeoutMin = ctx.configService.get<number>('soup.restore_timeout_minutes') ?? 5;
+    const restoreTimeoutMs = restoreTimeoutMin * 60_000;
+    const nowSec = Math.floor(Date.now() / 1000);
+
+    // 设置 restoring 锁 + 过期时间戳
     snapshot.phase = 'restoring';
     snapshot.restoringBy = ctx.senderQQ;
+    snapshot.restoringExpiresAt = nowSec + restoreTimeoutMin * 60;
     await this.sessionManager.transitionState(
       session.id,
       'restoring',
       snapshot as unknown as Record<string, unknown>,
     );
 
-    await ctx.reply(`🔍 ${ctx.senderName} 开始还原，请暂停提问...`);
+    await ctx.reply(`🔍 ${ctx.senderName} 提交还原，判定中...（其他玩家请暂停提问）`);
 
     const puzzle = await this.loadCurrentPuzzle(snapshot.currentPuzzleId);
     if (!puzzle) {
       snapshot.phase = 'running';
       snapshot.restoringBy = null;
+      snapshot.restoringExpiresAt = null;
       await this.sessionManager.transitionState(session.id, 'running', snapshot as unknown as Record<string, unknown>);
       return ctx.reply('⚠️ 题目加载失败');
     }
 
     const leakThreshold = ctx.configService.get<number>('soup.leak_keyword_threshold') ?? 2;
-    const restoreResult = await callSoupRestore(
-      this.llmRouter,
-      puzzle,
-      ctx.senderQQ,
-      restoreText,
-      leakThreshold,
+
+    // 超时竞争：若 LLM 在 restoreTimeoutMs 内未返回，视为还原失败
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('RESTORE_TIMEOUT')), restoreTimeoutMs),
     );
 
-    if (!restoreResult.ok) {
+    const onRestoreLeakDetected = async (hitWords: string[]) => {
+      await ctx.auditService.log({
+        category: 'leak_intercept',
+        actor: ctx.senderQQ,
+        actorType: 'player',
+        action: 'LEAK_BLOCKED',
+        target: session.id,
+        severity: 'warning',
+        meta: { hitWords, task: 'soup_restore', sessionId: session.id },
+      });
+    };
+
+    let restoreResult: Awaited<ReturnType<typeof callSoupRestore>>;
+    try {
+      restoreResult = await Promise.race([
+        callSoupRestore(this.llmRouter, puzzle, ctx.senderQQ, restoreText, leakThreshold, onRestoreLeakDetected),
+        timeoutPromise,
+      ]);
+    } catch (e: any) {
+      if (e?.message === 'RESTORE_TIMEOUT') {
+        // 重新从 DB 取最新快照（LLM 仍在后台运行，避免用旧 snapshot）
+        const freshSession = await this.sessionManager.getSessionById(session.id);
+        if (freshSession && freshSession.state === 'restoring') {
+          const freshSnap = freshSession.stateSnapshot as unknown as SoupRuntimeState;
+          freshSnap.phase = 'running';
+          freshSnap.restoringBy = null;
+          freshSnap.restoringExpiresAt = null;
+          await this.sessionManager.transitionState(
+            session.id, 'running', freshSnap as unknown as Record<string, unknown>,
+          );
+        }
+        return ctx.reply(`⏰ 还原判定超时（${restoreTimeoutMin}分钟），视为失败，游戏继续`);
+      }
+      // 其他异常
       snapshot.phase = 'running';
       snapshot.restoringBy = null;
+      snapshot.restoringExpiresAt = null;
       await this.sessionManager.transitionState(session.id, 'running', snapshot as unknown as Record<string, unknown>);
       return ctx.reply('💥 还原判定失败，请稍后重试，游戏继续');
     }
 
-    const { appPassed, coverage, summary, missing_critical_ids } = restoreResult.value;
+    if (!restoreResult.ok) {
+      snapshot.phase = 'running';
+      snapshot.restoringBy = null;
+      snapshot.restoringExpiresAt = null;
+      await this.sessionManager.transitionState(session.id, 'running', snapshot as unknown as Record<string, unknown>);
+      return ctx.reply('💥 还原判定失败，请稍后重试，游戏继续');
+    }
+
+    const { appPassed, coverage, missing_critical_ids } = restoreResult.value;
 
     if (appPassed) {
       // 还原成功
@@ -533,7 +687,7 @@ export class SoupHandler implements CommandHandler {
           userQq: score.qq,
           puzzleId: puzzle.id,
           sessionId: session.id,
-          result: score.qq === ctx.senderQQ ? 'won' : 'played',
+          result: score.qq === ctx.senderQQ ? 'win' : 'played',
           contributionScore: score.score,
           breakthroughCount: score.breakthroughCount,
           questionsAsked: score.questionsAsked,
@@ -541,40 +695,46 @@ export class SoupHandler implements CommandHandler {
         });
       }
 
-      // 总结文本
+      // 总结文本（格式：名称（QQ）分数）
+      const pNames = snapshot.playerNames ?? {};
       const scoreText = finalScores
         .map((s, i) => {
           const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-          return `${medal} ${s.qq}  ${s.score.toFixed(1)}分（突破×${s.breakthroughCount}）`;
+          const name = pNames[s.qq] ? `${pNames[s.qq]}（${s.qq}）` : s.qq;
+          return `${medal} ${name}  ${s.score.toFixed(1)}分（突破×${s.breakthroughCount}）`;
         })
         .join('\n');
 
-      // LLM 总结点评
+      // LLM 总结点评（传入提问历史，让 AI 言之有物）
       const summaryData = await callSummary(
         this.llmRouter,
         puzzle,
         finalScores.map((s) => ({
           qq: s.qq,
-          displayName: s.qq,
+          displayName: pNames[s.qq] ?? s.qq,
           score: s.score,
           breakthroughCount: s.breakthroughCount,
         })),
         true,
         durationSec,
+        snapshot.contribution.questionLog,
+        pNames,
       );
 
       const diffStars = '★'.repeat(puzzle.difficulty) + '☆'.repeat(5 - puzzle.difficulty);
+      const tagsLine = puzzle.tags.length > 0 ? ` · 标签：${puzzle.tags.join(' ')}` : '';
       await ctx.reply(
         `🎉 还原成功！游戏结束！\n\n` +
         `【真相揭晓】\n${puzzle.truth}\n\n` +
         `【贡献度排名】\n${scoreText}\n\n` +
         `【AI 点评】\n${summaryData.overall_comment}\n\n` +
-        `📊 题目：《${puzzle.title}》${diffStars} · 用时 ${Math.floor(durationSec / 60)}分${durationSec % 60}秒`,
+        `📊 《${puzzle.title}》${diffStars}${tagsLine} · 用时 ${Math.floor(durationSec / 60)}分${durationSec % 60}秒`,
       );
     } else {
       // 还原失败
       snapshot.phase = 'running';
       snapshot.restoringBy = null;
+      snapshot.restoringExpiresAt = null;
       snapshot.directionRequestExpiresAt = Math.floor(Date.now() / 1000) + 60;
       await this.sessionManager.transitionState(
         session.id,
@@ -582,9 +742,19 @@ export class SoupHandler implements CommandHandler {
         snapshot as unknown as Record<string, unknown>,
       );
 
-      let failMsg = `❌ 还原未通过，游戏继续\n${summary}`;
+      // summary 是 LLM 内部评估，可能含真相关键词，不直接展示
+      // 用 coverage 驱动一句无泄露的鼓励文字
+      const pct = Math.round(coverage * 100);
+      let failMsg = `❌ 还原未通过，游戏继续\n`;
+      if (pct >= 60) {
+        failMsg += `💡 思路很接近了（覆盖度约 ${pct}%），继续深入提问！`;
+      } else if (pct >= 30) {
+        failMsg += `💡 有一些关键点（覆盖度约 ${pct}%），还需要更多发现。`;
+      } else {
+        failMsg += `💡 继续提问，慢慢找到关键线索吧！`;
+      }
       if (missing_critical_ids.length > 0) {
-        failMsg += `\n（还有关键要素未还原到）`;
+        failMsg += `\n（还有必要要素未涉及）`;
       }
       failMsg += `\n\n60秒内可输入 .soup direction 获取方向提示`;
       await ctx.reply(failMsg);
@@ -594,7 +764,7 @@ export class SoupHandler implements CommandHandler {
   // ── giveup ────────────────────────────────────────────────────────────────
 
   private async handleGiveup(ctx: CommandContext): Promise<void> {
-    if (!ctx.groupId) return ctx.reply('⚠️ 请在群里使用此命令');
+    if (!this.getEffectiveGroupId(ctx)) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
 
     const session = await this.getRunningSession(ctx);
     if (!session) return;
@@ -648,25 +818,118 @@ export class SoupHandler implements CommandHandler {
     }
 
     const truthText = puzzle?.truth ?? '（无法加载真相）';
+    const gvNames = snapshot.playerNames ?? {};
     const scoreText = finalScores
       .slice(0, 5)
-      .map((s, i) => `${['🥇','🥈','🥉'][i] ?? `${i+1}.`} ${s.qq} ${s.score.toFixed(1)}分`)
+      .map((s, i) => {
+        const medal = ['🥇', '🥈', '🥉'][i] ?? `${i + 1}.`;
+        const name = gvNames[s.qq] ? `${gvNames[s.qq]}（${s.qq}）` : s.qq;
+        return `${medal} ${name}  ${s.score.toFixed(1)}分`;
+      })
       .join('\n');
 
+    const gvDiffStars = puzzle ? '★'.repeat(puzzle.difficulty) + '☆'.repeat(5 - puzzle.difficulty) : '';
+    const gvTagsLine = puzzle?.tags?.length ? ` · 标签：${puzzle.tags.join(' ')}` : '';
     await ctx.reply(
       `🏳️ 全员放弃，游戏结束\n\n` +
       `【真相揭晓】\n${truthText}\n\n` +
       `【贡献度】\n${scoreText}\n\n` +
+      (puzzle ? `📊 《${puzzle.title}》${gvDiffStars}${gvTagsLine}\n` : '') +
       `用时 ${Math.floor(durationSec / 60)}分${durationSec % 60}秒`,
     );
+  }
+
+  // ── end（宽限期快速结束） ──────────────────────────────────────────────────
+
+  private async handleEnd(ctx: CommandContext): Promise<void> {
+    if (!this.getEffectiveGroupId(ctx)) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
+
+    const session = await this.getRunningSession(ctx);
+    if (!session) return;
+
+    const snapshot = session.stateSnapshot as unknown as SoupRuntimeState;
+    if (snapshot.phase !== 'running') return ctx.reply('⚠️ 游戏不在提问阶段');
+    if (!session.members.includes(ctx.senderQQ)) return ctx.reply('⚠️ 你不在游戏中');
+
+    // 仅宽限期内可用（避免成员随意终止正在进行的游戏）
+    if (!snapshot.inGracePeriod) {
+      return ctx.reply('⚠️ 游戏正常进行中，如需提前结束请使用 .soup giveup 投票');
+    }
+
+    this.sessionManager.clearActivityTimeout(session.id);
+    const puzzle = await this.loadCurrentPuzzle(snapshot.currentPuzzleId);
+    const now = Math.floor(Date.now() / 1000);
+    const durationSec = snapshot.startedAt ? now - snapshot.startedAt : 0;
+    const finalScores = calcFinalScores(snapshot.contribution);
+
+    snapshot.inGracePeriod = false;
+    await this.sessionManager.transitionState(
+      session.id,
+      'ended',
+      snapshot as unknown as Record<string, unknown>,
+      { endedAt: now, endReason: 'timeout' },
+    );
+
+    for (const score of finalScores) {
+      const p = snapshot.contribution.players[score.qq];
+      await this.soupService.savePlayRecord({
+        userQq: score.qq,
+        puzzleId: puzzle?.id ?? '',
+        sessionId: session.id,
+        result: 'giveup',
+        contributionScore: score.score,
+        breakthroughCount: score.breakthroughCount,
+        questionsAsked: score.questionsAsked,
+        joinedAt: p?.joinedAt ?? now,
+      });
+    }
+
+    const endDiffStars = puzzle ? '★'.repeat(puzzle.difficulty) + '☆'.repeat(5 - puzzle.difficulty) : '';
+    const endTagsLine = puzzle?.tags?.length ? ` · 标签：${puzzle.tags.join(' ')}` : '';
+    await ctx.reply(
+      `⏰ ${ctx.senderName} 确认结束游戏\n\n` +
+      `【真相揭晓】\n${puzzle?.truth ?? '（无法加载真相）'}\n\n` +
+      (puzzle ? `📊 《${puzzle.title}》${endDiffStars}${endTagsLine}\n` : '') +
+      `用时 ${Math.floor(durationSec / 60)}分${durationSec % 60}秒`,
+    );
+  }
+
+  // ── continue（宽限期延续）────────────────────────────────────────────────
+
+  private async handleContinue(ctx: CommandContext): Promise<void> {
+    const effectiveGroupId = this.getEffectiveGroupId(ctx);
+    if (!effectiveGroupId) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
+
+    const session = await this.getRunningSession(ctx);
+    if (!session) return;
+
+    const snapshot = session.stateSnapshot as unknown as SoupRuntimeState;
+    if (snapshot.phase !== 'running') return ctx.reply('⚠️ 游戏不在提问阶段');
+    if (!session.members.includes(ctx.senderQQ)) return ctx.reply('⚠️ 你不在游戏中');
+
+    const puzzle = await this.loadCurrentPuzzle(snapshot.currentPuzzleId);
+    if (!puzzle) return ctx.reply('⚠️ 题目加载失败，无法延续');
+
+    // 清除宽限期标记，重置计时器
+    snapshot.inGracePeriod = false;
+    this.sessionManager.saveSnapshot(session.id, snapshot as unknown as Record<string, unknown>);
+
+    const idleTimeoutMin = ctx.configService.get<number>('soup.idle_timeout_minutes') ?? 45;
+    const idleMs = idleTimeoutMin * 60_000;
+    this.sessionManager.resetActivityTimer(session.id, idleMs, async () => {
+      await this.onIdleTimeout(session.id, effectiveGroupId, puzzle, snapshot, ctx);
+    });
+
+    await ctx.reply(`✅ ${ctx.senderName} 延续游戏！计时器已重置（${idleTimeoutMin}分钟内无活动将再次提醒）`);
   }
 
   // ── change ────────────────────────────────────────────────────────────────
 
   private async handleChange(ctx: CommandContext): Promise<void> {
-    if (!ctx.groupId) return ctx.reply('⚠️ 请在群里使用此命令');
+    const effectiveGroupId = this.getEffectiveGroupId(ctx);
+    if (!effectiveGroupId) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
 
-    const roomId = await this.sessionManager.getRoomIdByGroupId(ctx.groupId, 'qq');
+    const roomId = await this.sessionManager.getRoomIdByGroupId(effectiveGroupId, 'qq');
     if (!roomId) return ctx.reply('⚠️ 当前群没有进行中的游戏');
 
     const session = await this.sessionManager.getActiveSessionByRoom(roomId);
@@ -725,16 +988,39 @@ export class SoupHandler implements CommandHandler {
     qCount: number,
   ): Promise<void> {
     if (qCount >= 1) {
-      // 公布真相，计为失败
+      // 公布真相，计为失败，保存游玩记录
       const puzzle = await this.loadCurrentPuzzle(snapshot.currentPuzzleId);
+      const chDiffStars = puzzle ? '★'.repeat(puzzle.difficulty) + '☆'.repeat(5 - puzzle.difficulty) : '';
+      const chTagsLine = puzzle?.tags?.length ? ` · 标签：${puzzle.tags.join(' ')}` : '';
       await ctx.reply(
-        `🔄 换题！游戏结算...\n\n【真相揭晓】\n${puzzle?.truth ?? '（加载失败）'}`,
+        `🔄 换题！游戏结算...\n\n` +
+        `【真相揭晓】\n${puzzle?.truth ?? '（加载失败）'}\n\n` +
+        (puzzle ? `📊 《${puzzle.title}》${chDiffStars}${chTagsLine}` : ''),
       );
+
+      // 保存各玩家的 giveup 记录
+      if (puzzle) {
+        const finalScores = calcFinalScores(snapshot.contribution);
+        const now = Math.floor(Date.now() / 1000);
+        for (const score of finalScores) {
+          const p = snapshot.contribution.players[score.qq];
+          await this.soupService.savePlayRecord({
+            userQq: score.qq,
+            puzzleId: puzzle.id,
+            sessionId,
+            result: 'giveup',
+            contributionScore: score.score,
+            breakthroughCount: score.breakthroughCount,
+            questionsAsked: score.questionsAsked,
+            joinedAt: p?.joinedAt ?? now,
+          });
+        }
+      }
     } else {
       await ctx.reply('🔄 换题，不计为失败');
     }
 
-    // 重置为 setup 阶段
+    // 重置为 setup 阶段（贡献度等数据在下次 .soup go 时重新初始化）
     snapshot.phase = 'setup';
     snapshot.currentPuzzleId = null;
     snapshot.setupFilters = { difficulty: null, tags: [] };
@@ -743,6 +1029,10 @@ export class SoupHandler implements CommandHandler {
     snapshot.changeInitiator = null;
     snapshot.givenHintIndices = [];
     snapshot.lastHintAt = null;
+    snapshot.inGracePeriod = false;
+    snapshot.restoringBy = null;
+    snapshot.restoringExpiresAt = null;
+    snapshot.directionRequestExpiresAt = null;
 
     this.sessionManager.clearActivityTimeout(sessionId);
     await this.sessionManager.transitionState(
@@ -767,7 +1057,7 @@ export class SoupHandler implements CommandHandler {
   // ── direction ─────────────────────────────────────────────────────────────
 
   private async handleDirection(ctx: CommandContext): Promise<void> {
-    if (!ctx.groupId) return ctx.reply('⚠️ 请在群里使用此命令');
+    if (!this.getEffectiveGroupId(ctx)) return ctx.reply('⚠️ 请在群里使用此命令（VIP 可私聊）');
 
     const session = await this.getRunningSession(ctx);
     if (!session) return;
@@ -805,16 +1095,81 @@ export class SoupHandler implements CommandHandler {
 
   // ── submit ────────────────────────────────────────────────────────────────
 
-  private async handleSubmit(ctx: CommandContext, _args: string): Promise<void> {
-    // 简化版：通过私聊提交，格式 .soup submit
-    // 引导用户使用 WebUI 录题（更丰富），或者启动多步对话
+  private async handleSubmit(ctx: CommandContext, rawContent: string): Promise<void> {
+    const content = rawContent.trim();
+
+    // 无内容或发送了 "start" → 显示格式说明
+    if (!content || content.toLowerCase() === 'start') {
+      await ctx.replyPrivate(
+        `🐢 【海龟汤题目投稿】\n\n` +
+        `请在私聊中一次发送以下格式：\n\n` +
+        `.soup submit\n` +
+        `标题: 你的题目名称\n` +
+        `汤面: 表面故事（玩家看到的）\n` +
+        `真相: 完整真相\n` +
+        `难度: 3\n` +
+        `标签: 悬疑,推理（可选，逗号分隔）\n\n` +
+        `📌 投稿后题目进入草稿状态，管理员审核后才会进入题库。`,
+      );
+      return;
+    }
+
+    // 解析格式化内容
+    const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+    const getValue = (...keys: string[]): string | null => {
+      for (const key of keys) {
+        const line = lines.find((l) => l.startsWith(key));
+        if (line) return line.slice(key.length).trim();
+      }
+      return null;
+    };
+
+    const title   = getValue('标题:', '标题：');
+    const surface = getValue('汤面:', '汤面：', '表面:', '表面：');
+    const truth   = getValue('真相:', '真相：');
+    const diffStr = getValue('难度:', '难度：') ?? '3';
+    const tagsStr = getValue('标签:', '标签：');
+
+    // 验证必填项
+    const missing: string[] = [];
+    if (!title)   missing.push('标题');
+    if (!surface) missing.push('汤面');
+    if (!truth)   missing.push('真相');
+    if (missing.length > 0) {
+      await ctx.reply(
+        `⚠️ 格式不完整，缺少：${missing.join('、')}\n发送 .soup submit 查看格式说明`,
+      );
+      return;
+    }
+
+    const difficulty = parseInt(diffStr, 10);
+    if (isNaN(difficulty) || difficulty < 1 || difficulty > 5) {
+      await ctx.reply('⚠️ 难度必须为 1~5 的整数，例如：难度: 3');
+      return;
+    }
+
+    const tags = tagsStr
+      ? tagsStr.split(/[,，、\s]+/).map((t) => t.trim()).filter(Boolean)
+      : [];
+
+    // 确保用户已注册
+    await ctx.userService.ensureUserExists(ctx.senderQQ, ctx.senderName);
+
+    // 创建草稿题目
+    const result = await this.soupService.createPuzzle(
+      { title: title!, surface: surface!, truth: truth!, difficulty, tags, source: 'user_submit' },
+      ctx.senderQQ,
+    );
+
+    if (!result.ok) {
+      await ctx.reply('💥 投稿失败，请稍后重试');
+      return;
+    }
+
+    log.info({ puzzleId: result.value.id, submitter: ctx.senderQQ }, '[soup] 用户投稿题目');
     await ctx.replyPrivate(
-      `🐢 感谢你想要投稿！\n\n` +
-      `【投稿方式】\n` +
-      `1. 直接在管理后台录入（推荐）\n` +
-      `2. 私聊格式投稿（按提示一步步填写）\n\n` +
-      `私聊投稿请发送：\n` +
-      `.soup submit start\n开始多步投稿流程`,
+      `✅ 投稿成功！《${title!}》已收录（草稿待审核）\n` +
+      `管理员审核通过后将进入题库，感谢你的贡献！`,
     );
   }
 
@@ -841,35 +1196,66 @@ export class SoupHandler implements CommandHandler {
     sessionId: string,
     _groupId: string,
     puzzle: SoupPuzzleData,
-    snapshot: SoupRuntimeState,
+    _snapshot: SoupRuntimeState,
     ctx: CommandContext,
   ): Promise<void> {
     log.info({ sessionId }, '[soup] running 无活动超时');
     const session = await this.sessionManager.getSessionById(sessionId);
     if (!session || session.state !== 'running') return;
 
+    // 从 DB 取最新快照，设置宽限期标记
+    const freshSnap = session.stateSnapshot as unknown as SoupRuntimeState;
+    freshSnap.inGracePeriod = true;
+    this.sessionManager.saveSnapshot(sessionId, freshSnap as unknown as Record<string, unknown>);
+
+    const idleTimeoutMin = ctx.configService.get<number>('soup.idle_timeout_minutes') ?? 45;
+    const graceMin = ctx.configService.get<number>('soup.idle_grace_minutes') ?? 5;
+    const prefix = ctx.configService.getCommandPrefix();
+
     await ctx.reply(
-      `⏰ 超过 30 分钟没有提问了，游戏即将结束\n` +
-      `• .soup continue 继续游戏\n` +
-      `• .soup end 结束游戏\n` +
-      `（5 分钟内无响应将自动结束）`,
+      `⏰ 超过 ${idleTimeoutMin} 分钟没有提问了，游戏即将结束\n` +
+      `• ${prefix}soup ask <问题>  继续提问（重置计时器）\n` +
+      `• ${prefix}soup continue   延续游戏（${idleTimeoutMin}分钟计时）\n` +
+      `• ${prefix}soup end        立即公布真相并结束\n` +
+      `（${graceMin} 分钟内无响应将自动结束）`,
     );
 
-    // 宽限 5 分钟
-    const graceMs = (ctx.configService.get<number>('soup.idle_grace_minutes') ?? 5) * 60_000;
+    // 宽限期计时器
+    const graceMs = graceMin * 60_000;
     this.sessionManager.registerActivityTimeout(sessionId, graceMs, async () => {
       const s = await this.sessionManager.getSessionById(sessionId);
       if (!s || s.state !== 'running') return;
 
+      const latestSnap = s.stateSnapshot as unknown as SoupRuntimeState;
       const now = Math.floor(Date.now() / 1000);
-      await this.sessionManager.transitionState(sessionId, 'ended', snapshot as unknown as Record<string, unknown>, {
+      const finalScores = calcFinalScores(latestSnap.contribution);
+
+      await this.sessionManager.transitionState(sessionId, 'ended', latestSnap as unknown as Record<string, unknown>, {
         endedAt: now,
         endReason: 'timeout',
       });
 
+      // 保存超时结束的游玩记录
+      for (const score of finalScores) {
+        const p = latestSnap.contribution.players[score.qq];
+        await this.soupService.savePlayRecord({
+          userQq: score.qq,
+          puzzleId: puzzle.id,
+          sessionId,
+          result: 'giveup',
+          contributionScore: score.score,
+          breakthroughCount: score.breakthroughCount,
+          questionsAsked: score.questionsAsked,
+          joinedAt: p?.joinedAt ?? now,
+        });
+      }
+
+      const toDiffStars = '★'.repeat(puzzle.difficulty) + '☆'.repeat(5 - puzzle.difficulty);
+      const toTagsLine = puzzle.tags?.length ? ` · 标签：${puzzle.tags.join(' ')}` : '';
       await ctx.reply(
         `⏰ 宽限期结束，游戏超时结束\n\n` +
-        `【真相揭晓】\n${puzzle.truth}`,
+        `【真相揭晓】\n${puzzle.truth}\n\n` +
+        `📊 《${puzzle.title}》${toDiffStars}${toTagsLine}`,
       );
     });
   }
@@ -877,15 +1263,16 @@ export class SoupHandler implements CommandHandler {
   // ── 工具方法 ─────────────────────────────────────────────────────────────
 
   private async getRunningSession(ctx: CommandContext) {
-    if (!ctx.groupId) return null;
-    const roomId = await this.sessionManager.getRoomIdByGroupId(ctx.groupId, 'qq');
+    const effectiveGroupId = this.getEffectiveGroupId(ctx);
+    if (!effectiveGroupId) return null;
+    const roomId = await this.sessionManager.getRoomIdByGroupId(effectiveGroupId, 'qq');
     if (!roomId) {
-      await ctx.reply('⚠️ 当前群没有进行中的游戏，输入 .soup start 开始');
+      await ctx.reply('⚠️ 当前没有进行中的游戏，输入 .soup start 开始');
       return null;
     }
     const session = await this.sessionManager.getActiveSessionByRoom(roomId);
     if (!session) {
-      await ctx.reply('⚠️ 当前群没有进行中的游戏，输入 .soup start 开始');
+      await ctx.reply('⚠️ 当前没有进行中的游戏，输入 .soup start 开始');
       return null;
     }
     return session;
@@ -908,7 +1295,9 @@ export class SoupHandler implements CommandHandler {
       `${prefix}soup ask <问题> — 提问\n` +
       `${prefix}soup hint       — 请求提示\n` +
       `${prefix}soup restore <答案> — 提交还原\n` +
-      `${prefix}soup giveup     — 投票放弃\n` +
+      `${prefix}soup giveup     — 投票放弃（需半数同意）\n` +
+      `${prefix}soup end        — 宽限期内确认结束\n` +
+      `${prefix}soup continue   — 宽限期内延续游戏\n` +
       `${prefix}soup change     — 换题\n` +
       `${prefix}soup submit     — 投稿题目`
     );

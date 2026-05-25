@@ -79,7 +79,7 @@ export class CommandRouter {
   private registerBuiltinHandlers(): void {
     this.registry.register(new PingHandler());
     this.registry.register(new HelpHandler(this.registry));
-    this.registry.register(new StatsHandler());
+    // StatsHandler 需要 SoupService，在 registerGameHandlers() 中注册
 
     // 其他游戏占位指令
     this.registry.register(PlaceholderHandler.make('r', ['roll'], '骰子功能', 3));
@@ -92,6 +92,7 @@ export class CommandRouter {
 
   private registerGameHandlers(): void {
     if (!this.sessionManager || !this.soupService || !this.llmRouter) return;
+    this.registry.register(new StatsHandler(this.soupService));
     this.registry.register(new SoupHandler(this.sessionManager, this.soupService, this.llmRouter));
     this.registry.register(new StopHandler(this.sessionManager));
   }
@@ -105,17 +106,22 @@ export class CommandRouter {
    */
   async handle(message: NormalizedMessage): Promise<boolean> {
     const prefix = this.configService.getCommandPrefix();
+    // 同时支持中文句号"。"作为指令前缀（避免玩家切换输入法）
+    const altPrefix = '。';
     const text = message.segments
       .filter((s): s is { type: 'text'; text: string } => s.type === 'text')
       .map((s) => s.text)
       .join('')
       .trim();
 
-    if (!text.startsWith(prefix)) {
+    const startsWithPrefix = text.startsWith(prefix);
+    const startsWithAlt = text.startsWith(altPrefix);
+    if (!startsWithPrefix && !startsWithAlt) {
       return false;
     }
 
-    const withoutPrefix = text.slice(prefix.length).trim();
+    const matchedPrefix = startsWithPrefix ? prefix : altPrefix;
+    const withoutPrefix = text.slice(matchedPrefix.length).trim();
     if (!withoutPrefix) {
       return false;
     }

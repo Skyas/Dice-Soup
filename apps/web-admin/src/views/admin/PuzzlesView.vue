@@ -92,6 +92,32 @@
         <n-form-item label="来源">
           <n-select v-model:value="form.source" :options="sourceOptions" />
         </n-form-item>
+
+        <!-- 关键线索（可选手动录入，留空则创建后用 AI 提取） -->
+        <n-form-item label="关键线索">
+          <div style="width: 100%;">
+            <n-space align="center" style="margin-bottom: 8px;">
+              <n-text depth="3" style="font-size: 12px;">可选。留空则保存后点击"提取 metadata"由 AI 自动生成。</n-text>
+              <n-button size="tiny" @click="addKeyPoint">+ 添加线索</n-button>
+            </n-space>
+            <div v-for="(kp, idx) in form.keyPoints" :key="idx" class="kp-card">
+              <n-space align="center" style="margin-bottom: 4px;">
+                <n-text strong style="font-size: 13px;">线索 {{ idx + 1 }}</n-text>
+                <n-checkbox v-model:checked="kp.critical">
+                  <n-text type="error" style="font-size: 12px;">必要（critical）</n-text>
+                </n-checkbox>
+                <n-button size="tiny" type="error" text @click="removeKeyPoint(idx)">删除</n-button>
+              </n-space>
+              <n-input
+                v-model:value="kp.description"
+                placeholder="线索描述（如：乘客死亡并被合谋隐瞒）"
+                size="small"
+                style="margin-bottom: 4px;"
+              />
+              <n-dynamic-tags v-model:value="kp.keywords" size="small" />
+            </div>
+          </div>
+        </n-form-item>
       </n-form>
 
       <template #footer>
@@ -183,7 +209,7 @@ import {
   NButton, NSpace, NDataTable, NModal, NForm, NFormItem,
   NInput, NInputNumber, NSelect, NRate, NDynamicTags, NDynamicInput,
   NDrawer, NDrawerContent, NDescriptions, NDescriptionsItem,
-  NTag, NText, NList, NListItem,
+  NTag, NText, NList, NListItem, NCheckbox,
   useMessage,
   type DataTableColumns,
 } from 'naive-ui'
@@ -233,6 +259,13 @@ const editingId = ref<string | null>(null)
 const saving = ref(false)
 const formRef = ref()
 
+interface KeyPointDraft {
+  description: string
+  keywords: string[]
+  critical: boolean
+  weight: number
+}
+
 const defaultForm = () => ({
   title: '',
   surface: '',
@@ -242,7 +275,16 @@ const defaultForm = () => ({
   tags: [] as string[],
   expectedMinutes: null as number | null,
   source: 'admin_input',
+  keyPoints: [] as KeyPointDraft[],
 })
+
+function addKeyPoint() {
+  form.value.keyPoints.push({ description: '', keywords: [], critical: false, weight: 1 })
+}
+
+function removeKeyPoint(idx: number) {
+  form.value.keyPoints.splice(idx, 1)
+}
 
 const form = ref(defaultForm())
 
@@ -384,6 +426,12 @@ function openEdit(puzzle: Puzzle) {
     tags: [...puzzle.tags],
     expectedMinutes: puzzle.expectedMinutes,
     source: puzzle.source,
+    keyPoints: puzzle.keyPoints.map((kp) => ({
+      description: kp.description,
+      keywords: [...kp.keywords],
+      critical: kp.critical,
+      weight: kp.weight,
+    })),
   }
   showModal.value = true
 }
@@ -397,11 +445,27 @@ async function savePuzzle() {
 
   saving.value = true
   try {
+    // keyPoints 需要 id 字段（如果用户手动填写了）
+    const kpWithIds = form.value.keyPoints
+      .filter((kp) => kp.description.trim())
+      .map((kp, i) => ({
+        id: `kp${i + 1}`,
+        description: kp.description.trim(),
+        keywords: kp.keywords,
+        critical: kp.critical,
+        weight: kp.weight,
+      }))
+
+    const payload = {
+      ...form.value,
+      keyPoints: kpWithIds.length > 0 ? kpWithIds : undefined,
+    }
+
     if (editingId.value) {
-      await apiPut(`/api/admin/puzzles/${editingId.value}`, form.value)
+      await apiPut(`/api/admin/puzzles/${editingId.value}`, payload)
       message.success('保存成功')
     } else {
-      await apiPost('/api/admin/puzzles', form.value)
+      await apiPost('/api/admin/puzzles', payload)
       message.success('创建成功')
     }
     showModal.value = false
@@ -452,3 +516,13 @@ async function extractMetadata(id: string) {
 
 onMounted(() => loadPuzzles())
 </script>
+
+<style scoped>
+.kp-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+</style>
