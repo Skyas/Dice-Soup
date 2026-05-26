@@ -148,6 +148,85 @@ export const DEFAULT_CONFIGS: DefaultConfig[] = [
     category: 'llm',
   },
 
+  // ── 海龟汤游戏（Phase 2） ──
+  {
+    key: 'soup.idle_timeout_minutes',
+    value: 45,
+    valueType: 'number',
+    description: 'running 阶段无活动超时（分钟）',
+    category: 'game',
+  },
+  {
+    key: 'soup.restore_timeout_minutes',
+    value: 5,
+    valueType: 'number',
+    description: 'restore 还原判定最长等待时间（分钟），超时视为失败',
+    category: 'game',
+  },
+  {
+    key: 'soup.idle_grace_minutes',
+    value: 5,
+    valueType: 'number',
+    description: '无活动超时后的宽限期（分钟）',
+    category: 'game',
+  },
+  {
+    key: 'soup.setup_idle_minutes',
+    value: 3,
+    valueType: 'number',
+    description: 'setup 阶段无操作超时（分钟）',
+    category: 'game',
+  },
+  {
+    key: 'soup.max_asks_per_session',
+    value: 100,
+    valueType: 'number',
+    description: '单玩家单场最大提问数',
+    category: 'game',
+  },
+  {
+    key: 'soup.hint_team_interval_minutes',
+    value: 5,
+    valueType: 'number',
+    description: '全队 hint 最小间隔（分钟）',
+    category: 'game',
+  },
+  {
+    key: 'soup.endgame_lookback_questions',
+    value: 10,
+    valueType: 'number',
+    description: '终局回溯助攻窗口（条）',
+    category: 'game',
+  },
+  {
+    key: 'soup.leak_keyword_threshold',
+    value: 2,
+    valueType: 'number',
+    description: '输出泄露检测命中词阈值',
+    category: 'security',
+  },
+  {
+    key: 'soup.restore_coverage_threshold',
+    value: 0.7,
+    valueType: 'number',
+    description: '还原通过所需最低 coverage',
+    category: 'game',
+  },
+  {
+    key: 'soup.no_breakthrough_penalty',
+    value: 0.5,
+    valueType: 'number',
+    description: '0 突破玩家还原奖金折扣系数',
+    category: 'game',
+  },
+  {
+    key: 'soup.vip_qq_list',
+    value: ['897437055'],
+    valueType: 'array',
+    description: 'VIP QQ 号列表（可重复游玩同题、私聊开局等特权）',
+    category: 'game',
+  },
+
   // ── 平台 ──
   {
     key: 'onebot.ws_port',

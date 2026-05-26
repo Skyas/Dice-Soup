@@ -109,11 +109,10 @@ export const gameSessions = sqliteTable(
     lastActivityAt: integer('last_activity_at').notNull(),
   },
   (table) => ({
-    // 群级互斥：同群同时只能有一个 pending/running 会话
-    // 注意：SQLite partial index WHERE 条件需手动建，Drizzle 通过 sql`` 支持
+    // 群级互斥：同群同时只能有一个活跃会话
     uqRoomActive: uniqueIndex('uq_sessions_room_active')
       .on(table.roomId)
-      .where(sql`${table.state} IN ('pending', 'running')`),
+      .where(sql`${table.state} IN ('pending', 'running', 'setup', 'restoring')`),
     idxState: index('idx_sessions_state').on(table.state),
     idxRoom: index('idx_sessions_room').on(table.roomId, table.createdAt),
     idxLastActivity: index('idx_sessions_last_activity').on(table.lastActivityAt),
@@ -140,10 +139,10 @@ export const sessionMembers = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.sessionId, table.userQq] }),
-    // 用户级互斥：一个 QQ 号同时只能在一个 pending/running 会话中
+    // 用户级互斥：一个 QQ 号同时只能在一个活跃会话中
     uqUserActive: uniqueIndex('uq_members_user_active')
       .on(table.userQq)
-      .where(sql`${table.leftAt} IS NULL AND ${table.sessionState} IN ('pending', 'running')`),
+      .where(sql`${table.leftAt} IS NULL AND ${table.sessionState} IN ('pending', 'running', 'setup', 'restoring')`),
     idxUser: index('idx_members_user').on(table.userQq),
     idxSession: index('idx_members_session').on(table.sessionId),
   }),
@@ -160,6 +159,65 @@ export const configItems = sqliteTable('config_items', {
   updatedAt: integer('updated_at').notNull(),
   updatedBy: text('updated_by').notNull(),
 });
+
+// ─── soup_puzzles（§4.1.1） ────────────────────────────────────────────────────
+
+export const soupPuzzles = sqliteTable(
+  'soup_puzzles',
+  {
+    id: text('id').primaryKey().notNull(),
+    title: text('title').notNull(),
+    surface: text('surface').notNull(),
+    truth: text('truth').notNull(),
+    hintsJson: text('hints_json').notNull().default('[]'),
+    difficulty: integer('difficulty').notNull(),
+    tagsJson: text('tags_json').notNull().default('[]'),
+    expectedMinutes: integer('expected_minutes'),
+    keyPointsJson: text('key_points_json').notNull().default('[]'),
+    sensitiveWordsJson: text('sensitive_words_json').notNull().default('[]'),
+    metadataExtractedAt: integer('metadata_extracted_at'),
+    metadataVersion: integer('metadata_version').notNull().default(0),
+    source: text('source').notNull(),
+    sourceUrl: text('source_url'),
+    state: text('state').notNull().default('draft'),
+    createdBy: text('created_by'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    playCount: integer('play_count').notNull().default(0),
+    winRate: integer('win_rate'),
+    giveupRate: integer('giveup_rate'),
+  },
+  (table) => ({
+    idxState: index('idx_soup_puzzles_state').on(table.state),
+    idxDifficulty: index('idx_soup_puzzles_difficulty').on(table.difficulty),
+    idxCreatedAt: index('idx_soup_puzzles_created_at').on(table.createdAt),
+  }),
+);
+
+// ─── soup_play_records（§附录B） ──────────────────────────────────────────────
+
+export const soupPlayRecords = sqliteTable(
+  'soup_play_records',
+  {
+    id: text('id').primaryKey().notNull(),
+    userQq: text('user_qq').notNull(),
+    puzzleId: text('puzzle_id').notNull(),
+    sessionId: text('session_id').notNull(),
+    playedAt: integer('played_at').notNull(),
+    endedAt: integer('ended_at'),
+    result: text('result').notNull(),
+    contributionScore: integer('contribution_score'),
+    contributionPercentile: integer('contribution_percentile'),
+    breakthroughCount: integer('breakthrough_count').notNull().default(0),
+    questionsAsked: integer('questions_asked').notNull().default(0),
+    joinedAt: integer('joined_at').notNull(),
+  },
+  (table) => ({
+    idxUser: index('idx_soup_play_records_user').on(table.userQq),
+    idxPuzzle: index('idx_soup_play_records_puzzle').on(table.puzzleId),
+    idxSession: index('idx_soup_play_records_session').on(table.sessionId),
+  }),
+);
 
 // ─── 类型推导（Drizzle 自动推导，供 TS 使用） ─────────────────────────────────
 
@@ -178,3 +236,8 @@ export type SessionMember = typeof sessionMembers.$inferSelect;
 export type NewSessionMember = typeof sessionMembers.$inferInsert;
 export type ConfigItem = typeof configItems.$inferSelect;
 export type NewConfigItem = typeof configItems.$inferInsert;
+
+export type SoupPuzzle = typeof soupPuzzles.$inferSelect;
+export type NewSoupPuzzle = typeof soupPuzzles.$inferInsert;
+export type SoupPlayRecord = typeof soupPlayRecords.$inferSelect;
+export type NewSoupPlayRecord = typeof soupPlayRecords.$inferInsert;

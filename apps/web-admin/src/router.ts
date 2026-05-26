@@ -35,6 +35,11 @@ const router = createRouter({
           component: () => import('@/views/admin/ConfigView.vue'),
         },
         {
+          path: 'puzzles',
+          name: 'Puzzles',
+          component: () => import('@/views/admin/PuzzlesView.vue'),
+        },
+        {
           path: 'users',
           name: 'Users',
           component: () => import('@/views/admin/PlaceholderView.vue'),

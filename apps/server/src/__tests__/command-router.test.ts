@@ -156,12 +156,12 @@ describe('CommandRouter', () => {
 
   // ── 占位指令 ──────────────────────────────────────────────────────────────
 
-  it('占位指令 .soup.start 返回"敬请期待"', async () => {
-    const result = await router.handle(makeGroupMsg('.soup.start'));
+  it('占位指令 .avalon.start 返回"敬请期待"', async () => {
+    const result = await router.handle(makeGroupMsg('.avalon.start'));
     expect(result).toBe(true);
     const sentMsg = mockSendGroup.mock.calls[0][1];
     const text = sentMsg.segments.find((s: any) => s.type === 'text')?.text ?? '';
-    expect(text).toMatch(/第二大阶段|敬请期待/);
+    expect(text).toMatch(/第三大阶段|敬请期待/);
   });
 
   // ── 未知指令 ──────────────────────────────────────────────────────────────
@@ -177,8 +177,8 @@ describe('CommandRouter', () => {
   // ── 频道限制 ──────────────────────────────────────────────────────────────
 
   it('group_only 指令在私聊中被拒绝', async () => {
-    // soup.start 是 group_only（占位），在私聊中应被拒
-    const result = await router.handle(makePrivateMsg('.soup.start'));
+    // avalon.start 是 group_only（占位），在私聊中应被拒
+    const result = await router.handle(makePrivateMsg('.avalon.start'));
     expect(result).toBe(true);
     expect(mockSendPrivate).toHaveBeenCalledOnce();
     const sentMsg = mockSendPrivate.mock.calls[0][1];
