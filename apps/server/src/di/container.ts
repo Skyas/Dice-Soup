@@ -71,8 +71,11 @@ export async function bootstrap(): Promise<{
   // ── 4. OneBotClient（从配置读端口 + token） ───────────────────────────────
   // onebot.ws_port：非敏感，从 config_items 读（§1.11）
   const oneBotPort = configService.get<number>('onebot.ws_port') ?? 6700;
-  // access_token：敏感配置，只走 .env（§5.2）
-  const oneBotToken = process.env.ONEBOT_ACCESS_TOKEN ?? undefined;
+  // access_token：优先读 DB 加密存储，回退到 .env（向后兼容）
+  const oneBotToken =
+    configService.getDecrypted('onebot.access_token') ??
+    process.env.ONEBOT_ACCESS_TOKEN ??
+    undefined;
 
   // heartbeat_timeout_ms 从 config_items 读取（§1.11）
   // TODO: 修复之前硬编码 45_000 的问题，改为从配置读取
@@ -135,18 +138,60 @@ function buildLLMRouter(configService: ConfigService): LLMRouter {
     defaultResponse: JSON.stringify({ result: 'mock', message: '这是 Mock 响应，LLM 未配置' }),
   }));
 
-  // DeepSeekProvider：有 API Key 时注册
-  const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
-  if (deepseekApiKey) {
-    const deepseekLog = createLogger({ module: 'deepseek-provider' });
-    providers.set('deepseek', new DeepSeekProvider({ apiKey: deepseekApiKey }, deepseekLog));
-    log.info('[di] DeepSeek Provider 已注册');
-  } else {
-    log.warn('[di] DEEPSEEK_API_KEY 未配置，DeepSeek Provider 不可用，将使用 Mock Provider');
+  // 动态读取已注册的 provider 列表（来自 llm.providers 配置）
+  const providerList = configService.getOptional<Array<{
+    id: string; name: string; baseUrl: string; models: string[]; enabled: boolean;
+  }>>('llm.providers') ?? [];
+
+  let registeredCount = 0;
+  for (const p of providerList) {
+    if (!p.enabled) continue;
+
+    // 检查 API Key 是否已配置（DB 或 env），未配置则跳过
+    const hasKey =
+      configService.hasProviderApiKey(p.id) ||
+      !!process.env[p.id.toUpperCase() + '_API_KEY'] ||
+      (p.id === 'deepseek' && !!process.env.DEEPSEEK_API_KEY);
+
+    if (!hasKey) {
+      log.warn({ providerId: p.id }, '[di] Provider API Key 未配置，跳过注册');
+      continue;
+    }
+
+    // 目前只支持 DeepSeek（OpenAI 兼容），其他 provider 留 TODO
+    if (p.id === 'deepseek') {
+      const deepseekLog = createLogger({ module: 'deepseek-provider' });
+      // getApiKey 在每次 chat() 调用时执行，支持 API Key 热更新
+      providers.set('deepseek', new DeepSeekProvider({
+        getApiKey: () =>
+          configService.getProviderApiKey('deepseek') ??
+          process.env.DEEPSEEK_API_KEY ??
+          '',
+      }, deepseekLog));
+      log.info('[di] DeepSeek Provider 已注册（来源：' +
+        (configService.hasProviderApiKey('deepseek') ? 'DB' : 'env') + '，支持热更新）');
+      registeredCount++;
+    }
+    // TODO: 其他厂商 Provider 注册（OpenAI、Qwen、Anthropic 等）
   }
 
-  // 确定默认 Provider
-  const defaultProviderId = deepseekApiKey ? 'deepseek' : 'mock';
+  // 如果没有任何 provider 从 llm.providers 注册，尝试直接读 env var（纯 env 部署兼容）
+  if (registeredCount === 0) {
+    if (process.env.DEEPSEEK_API_KEY) {
+      const deepseekLog = createLogger({ module: 'deepseek-provider' });
+      providers.set('deepseek', new DeepSeekProvider({
+        getApiKey: () => process.env.DEEPSEEK_API_KEY ?? '',
+      }, deepseekLog));
+      log.info('[di] DeepSeek Provider 已注册（来源：env fallback）');
+    } else {
+      log.warn('[di] 无可用 LLM Provider，将使用 Mock Provider');
+    }
+  }
+
+  // 确定默认 Provider（优先读 config，回退到 deepseek/mock）
+  const configuredDefault = configService.getOptional<string>('llm.default_provider');
+  const deepseekApiKey = providers.has('deepseek');
+  const defaultProviderId = configuredDefault ?? (deepseekApiKey ? 'deepseek' : 'mock');
 
   // 任务路由配置
   const taskRouting = configService.get<Record<string, string>>('llm.task_routing') ?? {
@@ -167,7 +212,7 @@ function buildLLMRouter(configService: ConfigService): LLMRouter {
   });
 
   log.info(
-    { defaultProvider: defaultProviderId, taskCount: Object.keys(taskRouting).length },
+    { defaultProvider: defaultProviderId, providerCount: providers.size, taskCount: Object.keys(taskRouting).length },
     '[di] LLMRouter 构建完成',
   );
 

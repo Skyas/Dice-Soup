@@ -17,6 +17,10 @@ import { adminAuthRoutes } from './routes/admin/auth';
 import { adminLogsRoutes } from './routes/admin/logs';
 import { adminConfigRoutes } from './routes/admin/config';
 import { adminPuzzlesRoutes } from './routes/admin/puzzles';
+import { adminSecretsRoutes } from './routes/admin/secrets';
+import { adminServerControlRoutes } from './routes/admin/server-control';
+import { adminGameLogsRoutes } from './routes/admin/game-logs';
+import { getDatabase } from './db/client';
 import type { ConfigService } from './config/config-service';
 import type { AuditService } from './services/audit-service';
 import type { OneBotAdapter } from './adapters/onebot-adapter';
@@ -77,18 +81,21 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
       serve: true,
     });
 
-    // SPA fallback：只对没有扩展名的路径（即 Vue Router 路由）返回 index.html
-    // 有扩展名的（.js/.css/.svg 等静态资源）如果 404 就真的 404
+    // SPA fallback & 静态资源兜底
     fastify.setNotFoundHandler(async (request, reply) => {
       const url = request.url.split('?')[0];
       if (url.startsWith('/api')) {
         return reply.status(404).send({ error: 'NOT_FOUND' });
       }
-      // 有文件扩展名的静态资源不做 fallback
+      // 有文件扩展名的（.js/.css/.svg 等）尝试从 dist 目录直接发送
       if (path.extname(url)) {
-        return reply.status(404).send({ error: 'NOT_FOUND' });
+        try {
+          return await reply.sendFile(url.slice(1)); // strip leading /
+        } catch {
+          return reply.status(404).send({ error: 'NOT_FOUND' });
+        }
       }
-      // Vue Router 的前端路由，返回 index.html
+      // Vue Router 前端路由 → 返回 index.html
       return reply.type('text/html').sendFile('index.html');
     });
 
@@ -134,6 +141,15 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
     // 题库管理
     await adminPuzzlesRoutes(app, { soupService, llmRouter });
+
+    // 机密配置（API Key / Token 加密管理）
+    await adminSecretsRoutes(app, { configService, auditService });
+
+    // 服务器控制（重启等）
+    await adminServerControlRoutes(app, { auditService });
+
+    // 游戏对局记录
+    await adminGameLogsRoutes(app, { db: getDatabase() });
   });
 
   return fastify;

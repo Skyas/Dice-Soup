@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "server",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@dice-soup/server", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "web-admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@dice-soup/web-admin", "dev"],
+      "port": 5173
+    }
+  ]
+}

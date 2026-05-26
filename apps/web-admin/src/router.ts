@@ -26,8 +26,18 @@ const router = createRouter({
         },
         {
           path: 'logs',
-          name: 'LogViewer',
+          name: 'GameLogs',
+          component: () => import('@/views/admin/GameLogsView.vue'),
+        },
+        {
+          path: 'system-logs',
+          name: 'SystemLogs',
           component: () => import('@/views/admin/LogViewer.vue'),
+        },
+        {
+          path: 'llm-config',
+          name: 'LLMConfig',
+          component: () => import('@/views/admin/LLMConfigView.vue'),
         },
         {
           path: 'config',

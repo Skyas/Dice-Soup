@@ -436,7 +436,8 @@ export class SoupHandler implements CommandHandler {
     );
 
     if (!judgeResult.ok) {
-      return ctx.reply('💥 判定失败，请稍后重试');
+      log.error({ err: judgeResult.error, sessionId: session.id, senderQQ: ctx.senderQQ }, '[soup] ask 判定失败');
+      return ctx.reply(`💥 判定失败：${judgeResult.error.message}`);
     }
 
     const { verdict, confidence, matched_key_points } = judgeResult.value;
@@ -642,19 +643,21 @@ export class SoupHandler implements CommandHandler {
         return ctx.reply(`⏰ 还原判定超时（${restoreTimeoutMin}分钟），视为失败，游戏继续`);
       }
       // 其他异常
+      log.error({ err: e, sessionId: session.id, senderQQ: ctx.senderQQ }, '[soup] restore 异常');
       snapshot.phase = 'running';
       snapshot.restoringBy = null;
       snapshot.restoringExpiresAt = null;
       await this.sessionManager.transitionState(session.id, 'running', snapshot as unknown as Record<string, unknown>);
-      return ctx.reply('💥 还原判定失败，请稍后重试，游戏继续');
+      return ctx.reply(`💥 还原判定失败：${e?.message ?? '未知异常'}，游戏继续`);
     }
 
     if (!restoreResult.ok) {
+      log.error({ err: restoreResult.error, sessionId: session.id, senderQQ: ctx.senderQQ }, '[soup] restore 判定失败');
       snapshot.phase = 'running';
       snapshot.restoringBy = null;
       snapshot.restoringExpiresAt = null;
       await this.sessionManager.transitionState(session.id, 'running', snapshot as unknown as Record<string, unknown>);
-      return ctx.reply('💥 还原判定失败，请稍后重试，游戏继续');
+      return ctx.reply(`💥 还原判定失败：${restoreResult.error.message}，游戏继续`);
     }
 
     const { appPassed, coverage, missing_critical_ids } = restoreResult.value;
@@ -1162,7 +1165,7 @@ export class SoupHandler implements CommandHandler {
     );
 
     if (!result.ok) {
-      await ctx.reply('💥 投稿失败，请稍后重试');
+      await ctx.reply(`💥 投稿失败：${result.error.message}`);
       return;
     }
 

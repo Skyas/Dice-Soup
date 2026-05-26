@@ -148,7 +148,7 @@ describe.skipIf(!DEEPSEEK_KEY)('DeepSeekProvider (integration)', () => {
 
   beforeEach(() => {
     provider = new DeepSeekProvider(
-      { apiKey: DEEPSEEK_KEY!, timeoutMs: 30_000 },
+      { getApiKey: () => DEEPSEEK_KEY!, timeoutMs: 30_000 },
       createLogger({ module: 'test:deepseek' }),
     );
   });
