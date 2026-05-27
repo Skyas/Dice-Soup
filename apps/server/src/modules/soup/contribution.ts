@@ -21,7 +21,7 @@ export interface QuestionLogEntry {
   qq: string;
   questionIndex: number;
   question: string;
-  verdict: 'yes' | 'no' | 'irrelevant' | 'partial';
+  verdict: 'yes' | 'no' | 'partial' | 'unimportant' | 'irrelevant';
   matchedKeyPoints: string[];
   at: number;
 }
@@ -110,7 +110,7 @@ function totalQuestions(state: ContributionState): number {
 export function applyAsk(
   state: ContributionState,
   qq: string,
-  verdict: 'yes' | 'no' | 'irrelevant' | 'partial',
+  verdict: 'yes' | 'no' | 'partial' | 'unimportant' | 'irrelevant',
   matchedKeyPoints: string[],
   keyPoints: KeyPoint[],
   question: string,

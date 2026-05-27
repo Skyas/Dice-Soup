@@ -23,7 +23,7 @@ const log = createLogger({ module: 'soup-llm' });
 // ── Zod 输出 Schema ──────────────────────────────────────────────────────────
 
 export const SoupJudgeOutput = z.object({
-  verdict: z.enum(['yes', 'no', 'irrelevant', 'partial']),
+  verdict: z.enum(['yes', 'no', 'partial', 'unimportant', 'irrelevant']),
   internal_reason: z.string().max(200),
   confidence: z.number().min(0).max(1),
   matched_key_points: z.array(z.string()).max(5),
@@ -78,61 +78,91 @@ function escapeXml(text: string): string {
  * Judge 判定指令（拼接在题目 XML 之后）。
  * 管理员可通过 config_items['soup.prompt.judge'] 覆盖此段文本。
  */
-export const DEFAULT_JUDGE_INSTRUCTIONS = `判定规则：
-- verdict=yes：提问内容与真相某个事实点完全吻合
-- verdict=no：提问与真相相矛盾，OR 掌握完整真相后可以明确回答"不是/没有/否"
-- verdict=partial：提问部分正确，但有部分与真相不符
-- verdict=irrelevant：即使掌握完整真相，也根本无法对该问题给出确定的是/否——问题涉及真相完全未提及且无法推断的细节
+export const DEFAULT_JUDGE_INSTRUCTIONS = `你是海龟汤判定主持人。基于 <truth> 判定玩家提问，verdict 必为 yes / no / partial / unimportant / irrelevant 之一。
 
-no 与 irrelevant 的核心区别（这是最重要的规则，必须严格遵守）：
+【判定流程——按顺序执行】
 
-【必须判 no 的三种情形，满足任意一条即判 no，绝不能判 irrelevant】
-① 提问涉及的元素在真相中有对应，但描述错误
-  ✓ 真相：男子从高空坠落（飞机取水）→ 问"是被人从高空扔下来的吗" → no
-  ✓ 真相：他因自责自杀 → 问"他是被逼迫自杀的吗" → no
-② 掌握完整真相后，可以明确回答"不是/没有"
-  ✓ 真相：没有人死亡 → 问"故事里有人死了吗" → no（不是 irrelevant！）
-  ✓ 真相：他走楼梯是因为按不到按钮，非为健身 → 问"男子在锻炼身体吗" → no
-  ✓ 真相：他因身高原因被迫在15楼下 → 问"他是自愿只到15楼的吗" → no
-  ✓ 通用原则：凡是真相能给出确定否定答案的，一律判 no
-③ 提问中有任何元素在真相中存在（哪怕机制/细节不同）
-  ✓ 真相有"高空坠落" → 问任何涉及高空的问题 → no（不是 irrelevant）
+1) 把玩家提问改写成一句可验证的陈述（去掉"是否"等疑问句式）。
+2) 用 <truth> 检验该陈述。允许：同义改写、上下位关系、真相必然蕴含的事实；禁止：脑补真相未蕴含的内容。
+3) 按下列五档取一个 verdict（条件从上到下依次检查，命中即返回）：
 
-【只能判 irrelevant 的极端情形——条件极为严格】
-  即使掌握完整真相，也根本无法判断该问题答案，且问题与案件逻辑完全无关
-  ✓ 真相：矮人电梯谜题 → 问"他是左撇子吗" → irrelevant（真相未提，且与事件无任何逻辑关联）
-  ✓ 真相：任何谜题 → 问"电梯是什么颜色" → irrelevant（真相未提颜色，纯粹脱离情节）
-  ✗ 错误用法：只要"某概念未在真相文字中出现"就判 irrelevant → 这是错的，应先问"能用真相明确答否吗"
+  ◆ partial — 提问中既有真相支持的部分，也有真相否定的部分
+    例：真相"男子失足从飞机坠落" → 问"他从高空被人推下" → partial（高空 √ / 被推 ×）
 
-判定步骤（必须按此顺序执行）：
-1. 用完整真相直接回答该问题：能明确回答"否/没有/不是" → 立刻判 no，终止
-2. 找出提问核心元素，判断真相中是否有对应：
-   - 有对应且描述正确 → yes / 部分正确 → partial / 描述错误 → no
-   - 完全没有对应，且即使知道全部真相也无法回答 → irrelevant
+  ◆ no — 真相否定该陈述，或提问的具体描述与真相中对应元素不符
+    判据：基于真相能明确回答"不是/没有/否"
+    例：真相"他因自责自杀" → 问"他是被他杀的吗" → no
+    例：真相"走楼梯因为按不到电梯按钮" → 问"他在锻炼身体吗" → no
+    例：真相"他独自旅行" → 问"他和家人一起来的吗" → no
 
-⚠️ 约束：
-1. 只能基于真相字面内容判定，严禁推理、引申、联想
-2. "有人死了吗""有人受伤吗""这是故意的吗"等通用问题，一律可用真相回答，禁止判 irrelevant
-3. 真相说明了动机/方式/关系时，问"是否是其他动机/方式/关系" → 判 no，绝不判 irrelevant
+  ◆ yes — 真相直接支持，或真相必然蕴含该陈述
+    例：真相含"妻子在他出国后离世" → 问"是否有人死亡" → yes
+    例：真相"他翻报纸时看到妻子的讣告照片" → 问"报纸上是否有照片" → yes
+    例：真相"电话那头朋友提到船难" → 问"电话内容是否和船难有关" → yes
 
-若提问命中任意 key_point 关键词且 verdict 为 yes/partial，在 matched_key_points 填入对应 id。
+  ◆ unimportant — 真相能给出确定答案，但答案不推动玩家理解真相核心
+    判据：先确认真相能答 yes 或 no；再判断该答案对推理有没有价值
+    典型：提问宽泛到任何答案都不缩小搜索空间，或仅涉及边缘性细节
+    例：真相含次要人物（朋友/妻子）→ 问"是否存在汤面未提到的人物" → unimportant（答"是"但不导向真相机制）
+    例：真相主体是男主角 → 问"主角是男的吗" → unimportant（真相已暗示，对推理无增益）
 
-必须以 JSON 格式回复，不要任何其他内容：
-{"verdict":"...","internal_reason":"<内部推理，不超过80字>","confidence":0.0,"matched_key_points":[]}`;
+  ◆ irrelevant — 真相完全未涉及该陈述，且与谜题情境无任何逻辑接口
+    判据：真相既不能答"是"也不能答"否"，且问题完全脱离情境
+    例：灯塔谜题 → 问"灯塔的油漆是什么颜色" → irrelevant
+    例：电梯谜题 → 问"主角的星座" → irrelevant
+
+【高频误判——必须避免】
+
+× 不要因为"真相字面未出现该词"就判 irrelevant；先做语义比对（同义/上下位/蕴含）。
+× 真相能用 yes/no 回答的问题，绝不判 irrelevant；该问题若价值低请用 unimportant。
+× 真相中存在的元素被错误描述 → no，不是 irrelevant。
+× 真相显然蕴含的事实就是 yes（如"妻子死亡"蕴含"有人死亡"），但禁止过度引申到真相外。
+× internal_reason 必须引用真相中的具体依据，禁止"玩家可能想问 X"这类对意图的猜测。
+
+【关键线索命中】
+若 verdict 为 yes 或 partial，且提问命中某 key_point 对应的事实（按语义命中，不要求字面包含关键词），将该 key_point id 填入 matched_key_points。
+
+【信心度】
+- 真相文字直接支持/否定 → 0.9~1.0
+- 需要同义改写或显然蕴含 → 0.7~0.9
+- 边界判断（unimportant vs partial、yes vs partial 不易区分）→ 0.4~0.6
+
+【输出（严格 JSON，不要 markdown 围栏或额外文字）】
+{"verdict":"yes|no|partial|unimportant|irrelevant","internal_reason":"<80字内，引用真相依据>","confidence":0.0,"matched_key_points":[]}`;
 
 /**
  * Restore 还原评判标准（拼接在题目 XML 之后）。
  * 管理员可通过 config_items['soup.prompt.restore'] 覆盖此段文本。
  */
-export const DEFAULT_RESTORE_INSTRUCTIONS = `评判标准：
-- coverage：玩家还原内容覆盖真相关键要素的比例（0~1）
-- matched_key_point_ids：玩家还原中命中的 key_point id 列表
-- missing_critical_ids：critical=true 的 key_point 中未被命中的 id 列表
-- passed 条件：coverage >= 0.7 且 missing_critical_ids 为空
-- summary：内部评估摘要（不超过30字），绝对不能包含真相内容或透露关键要素具体内容
+export const DEFAULT_RESTORE_INSTRUCTIONS = `你是海龟汤还原判定主持人。判断玩家叙述是否抓住了真相的核心机制与因果。
 
-必须以 JSON 格式回复：
-{"passed":false,"coverage":0.0,"matched_key_point_ids":[],"missing_critical_ids":[],"summary":"继续提问，慢慢接近真相"}`;
+【核心原则——海龟汤还原不要求字面复刻】
+玩家用自己的话讲清楚真相的核心逻辑、动机、关键转折，即视为命中。以下三种方式都算覆盖了某个 key_point：
+(a) 同义/近义表达——如"自责"≈"内疚"≈"无法承受罪恶感"；"看不懂文字"≈"语言不通"
+(b) 逻辑蕴含——玩家虽未明说该 key_point，但其叙述逻辑必然推出该事实
+    例：玩家说"他害死了那些船员所以自杀" → 已蕴含"船只触礁导致死伤"+"因疏忽自责"两个 key_point
+(c) 合理简化——省略次要细节但保留核心因果链
+
+【不允许】
+× 用字面词频或关键词匹配率当 coverage 依据
+× 因玩家漏了非 critical 的次要细节就显著降低 coverage
+× 把"方向接近但漏掉核心机制"判为通过——核心机制必须有任一形式的覆盖
+× summary 包含真相内容或敏感词
+
+【字段定义】
+- coverage (0~1)：玩家叙述覆盖真相核心要素的比例。同义/蕴含/简化均按命中计入。
+  · 完整覆盖所有核心 → 0.85~1.0
+  · 主线清楚但漏 1 个非关键要素 → 0.7~0.85
+  · 抓到大致方向但漏掉关键机制 → 0.4~0.6
+  · 仅命中边缘细节 → 0~0.3
+- matched_key_point_ids：玩家叙述通过语义命中（同义或必然蕴含）的 key_point id。
+- missing_critical_ids：critical=true 的 key_point 中，玩家叙述既未直接说也未逻辑蕴含的 id。
+  ⚠ 判断"是否蕴含"时自问：仅看玩家这段话，能不能推出该 key_point？能则不算 missing。
+- passed：coverage ≥ 0.7 且 missing_critical_ids 为空。
+- summary：30 字内内部摘要，描述还原质量但不得复述真相或敏感词。
+
+【输出（严格 JSON，不要 markdown 围栏）】
+{"passed":false,"coverage":0.0,"matched_key_point_ids":[],"missing_critical_ids":[],"summary":"..."}`;
 
 /**
  * Extract Metadata 提取指令（完整 system prompt，因无题目数据需注入）。
@@ -423,7 +453,7 @@ export async function callSummary(
     .join('、');
 
   // 提问历史：带原文的完整记录（最近 30 条）
-  const verdictMap: Record<string, string> = { yes: '✅是', no: '❌否', partial: '〜部分', irrelevant: '↩无关' };
+  const verdictMap: Record<string, string> = { yes: '✅是', no: '❌否', partial: '〜部分', unimportant: '🤷不重要', irrelevant: '↩无关' };
   const logLines = questionLog.slice(-30).map((q, i) => {
     const name = playerNames[q.qq] ?? q.qq;
     const v = verdictMap[q.verdict] ?? q.verdict;
