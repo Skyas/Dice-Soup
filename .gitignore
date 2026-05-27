@@ -35,6 +35,9 @@ docker/napcat-config/*.json
 Thumbs.db
 desktop.ini
 
+# ── Claude Code 本地设置（含已授权命令，可能带敏感信息）─────────
+.claude/settings.local.json
+
 # ── 编辑器 ───────────────────────────────────────────────────
 .vscode/*
 !.vscode/extensions.json
