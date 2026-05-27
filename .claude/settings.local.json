@@ -27,7 +27,11 @@
       "Bash(curl -s -X PUT -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImRpc3BsYXlOYW1lIjoiQWRtaW5pc3RyYXRvciIsIm11c3RDaGFuZ2VQdyI6ZmFsc2UsImlhdCI6MTc3OTc3ODM5MCwiZXhwIjoxNzc5ODY0NzkwfQ.HJUvDnCscTNt2IWGTJeTObNjqsrzmVLZz6_yVgx7WF0' -H 'Content-Type: application/json' -d '{\"apiKey\":\"sk-test-abc123456789\"}' http://localhost:3000/api/admin/secrets/provider-keys/deepseek)",
       "Bash(curl -s -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImRpc3BsYXlOYW1lIjoiQWRtaW5pc3RyYXRvciIsIm11c3RDaGFuZ2VQdyI6ZmFsc2UsImlhdCI6MTc3OTc3ODM5MCwiZXhwIjoxNzc5ODY0NzkwfQ.HJUvDnCscTNt2IWGTJeTObNjqsrzmVLZz6_yVgx7WF0' http://localhost:3000/api/admin/config)",
       "Bash(node -e \"const d=JSON.parse\\(require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\)\\); const secret=d.items.filter\\(i=>i.key.includes\\('provider_keys'\\)||i.key.includes\\('access_token'\\)\\); console.log\\('Secret items in public API:', secret.length ? JSON.stringify\\(secret\\) : 'NONE ✓'\\)\")",
-      "Bash(findstr ADMIN)"
+      "Bash(findstr ADMIN)",
+      "Bash(pnpm exec *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":5173\")",
+      "Bash(pnpm dev *)"
     ]
   }
 }

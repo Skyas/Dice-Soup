@@ -29,8 +29,9 @@ const log = createLogger({ module: 'cmd:soup' });
 const VERDICT_DISPLAY: Record<string, string> = {
   yes: '✅ 是',
   no: '❌ 否',
-  irrelevant: '🔄 与本题无关',
   partial: '〜 部分正确',
+  unimportant: '🤷 不重要（可换方向）',
+  irrelevant: '🔄 与本题无关',
 };
 
 export class SoupHandler implements CommandHandler {
