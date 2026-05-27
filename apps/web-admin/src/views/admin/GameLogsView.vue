@@ -161,25 +161,45 @@
             </div>
           </div>
 
-          <!-- Q&A 提问记录 -->
+          <!-- 对局时间线：提问 + 还原按时间混排 -->
           <div class="detail-section">
-            <div class="section-head">提问记录（{{ detail.questionLog.length }} 条）</div>
-            <div v-if="detail.questionLog.length === 0" style="color:var(--fg-muted); font-size:13px;">暂无记录</div>
+            <div class="section-head">
+              对局时间线（{{ buildTimeline(detail).length }} 条
+              <template v-if="(detail.restoreLog?.length ?? 0) > 0">
+                · {{ detail.questionLog.length }} 问 · {{ detail.restoreLog.length }} 次还原
+              </template>）
+            </div>
+            <div v-if="buildTimeline(detail).length === 0" style="color:var(--fg-muted); font-size:13px;">暂无记录</div>
             <div v-else class="qa-log">
-              <div
-                v-for="(entry, i) in detail.questionLog"
-                :key="i"
-                class="qa-entry"
-                :class="entry.verdict"
-              >
-                <div class="qa-head">
-                  <span class="qa-player">{{ detail.playerNames[entry.qq] ?? entry.qq }}</span>
-                  <span class="qa-verdict" :class="entry.verdict">{{ verdictLabel(entry.verdict) }}</span>
-                  <span v-if="entry.matchedKeyPoints?.length" class="qa-breakthrough">★ 关键突破</span>
-                  <span class="qa-time mono">{{ formatTime(entry.at) }}</span>
+              <template v-for="(item, i) in buildTimeline(detail)" :key="i">
+                <!-- 提问条目 -->
+                <div v-if="item.kind === 'question'" class="qa-entry" :class="item.data.verdict">
+                  <div class="qa-head">
+                    <span class="qa-idx mono">Q{{ item.data.questionIndex + 1 }}</span>
+                    <span class="qa-player">{{ detail.playerNames[item.data.qq] ?? item.data.qq }}</span>
+                    <span class="qa-verdict" :class="item.data.verdict">{{ verdictLabel(item.data.verdict) }}</span>
+                    <span v-if="item.data.matchedKeyPoints?.length" class="qa-breakthrough">★ 突破</span>
+                    <span class="qa-time mono">{{ formatTime(item.data.at) }}</span>
+                  </div>
+                  <div class="qa-question">{{ item.data.question ?? '（无问题文本）' }}</div>
                 </div>
-                <div v-if="entry.question" class="qa-question">{{ entry.question }}</div>
-              </div>
+                <!-- 还原条目 -->
+                <div v-else class="qa-entry restore-entry-inline" :class="item.data.passed ? 'restore-pass' : 'restore-fail'">
+                  <div class="qa-head">
+                    <span class="qa-idx">🔍</span>
+                    <span class="qa-player">{{ detail.playerNames[item.data.qq] ?? item.data.qq }}</span>
+                    <span class="restore-badge-inline" :class="item.data.passed ? 'passed' : 'failed'">
+                      {{ item.data.passed ? '✅ 还原通过' : '❌ 还原未通过' }}
+                    </span>
+                    <span class="restore-coverage-inline">{{ Math.round(item.data.coverage * 100) }}%</span>
+                    <span class="qa-time mono">{{ formatTime(item.data.at) }}</span>
+                  </div>
+                  <div class="qa-question">{{ item.data.text }}</div>
+                  <div v-if="item.data.missingCriticalIds?.length" class="restore-missing-inline">
+                    缺少必要要素：{{ item.data.missingCriticalIds.join('、') }}
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </template>
@@ -238,10 +258,19 @@ interface Stats {
 interface QAEntry {
   qq: string
   questionIndex: number
+  question?: string
   verdict: string
   matchedKeyPoints: string[]
   at: number
-  question?: string
+}
+
+interface RestoreEntry {
+  qq: string
+  text: string
+  passed: boolean
+  coverage: number
+  missingCriticalIds: string[]
+  at: number
 }
 
 interface PlayerScore {
@@ -258,6 +287,7 @@ interface LogDetail {
   puzzleTitle: string
   puzzle: { title: string; surface: string; truth: string; difficulty: number } | null
   questionLog: QAEntry[]
+  restoreLog: RestoreEntry[]
   playerNames: Record<string, string>
   playerScores: PlayerScore[]
   memberCount: number
@@ -387,6 +417,18 @@ function verdictLabel(verdict: string): string {
   }
   return map[verdict] ?? verdict
 }
+
+type TimelineItem =
+  | { kind: 'question'; data: QAEntry }
+  | { kind: 'restore'; data: RestoreEntry }
+
+function buildTimeline(d: LogDetail): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...d.questionLog.map(e => ({ kind: 'question' as const, data: e })),
+    ...(d.restoreLog ?? []).map(e => ({ kind: 'restore' as const, data: e })),
+  ]
+  return items.sort((a, b) => a.data.at - b.data.at)
+}
 </script>
 
 <style scoped>
@@ -395,10 +437,17 @@ function verdictLabel(verdict: string): string {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
-  min-height: 0;
+  align-items: start;
 }
 .logs-layout.has-detail {
   grid-template-columns: 380px 1fr;
+}
+
+/* 两侧面板统一高度 + 各自独立滚动 */
+.logs-list,
+.logs-detail {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
 }
 
 /* Log 行 */
@@ -453,10 +502,7 @@ function verdictLabel(verdict: string): string {
 
 /* 详情面板 */
 .logs-detail {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  max-height: calc(100vh - 220px);
+  display: block;
 }
 .detail-head {
   display: flex;
@@ -484,12 +530,9 @@ function verdictLabel(verdict: string): string {
 .detail-section {
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
-  overflow-y: auto;
-  flex-shrink: 0;
 }
 .detail-section:last-child {
-  flex: 1;
-  overflow-y: auto;
+  border-bottom: none;
 }
 .section-head {
   font-size: 11px;
@@ -578,11 +621,41 @@ function verdictLabel(verdict: string): string {
   font-weight: 500;
 }
 .qa-time { margin-left: auto; font-size: 11px; color: var(--fg-muted); }
-.qa-question {
-  margin-top: 3px;
+.qa-idx {
+  font-size: 11px;
   color: var(--fg-muted);
-  font-size: 12px;
-  font-style: italic;
+  min-width: 28px;
+}
+.qa-question {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+/* 还原条目（内联于时间线） */
+.restore-entry-inline.restore-pass { border-left-color: var(--success, #16a34a); background: #f0fdf4; }
+.restore-entry-inline.restore-fail { border-left-color: var(--danger, #dc2626); background: #fff5f5; }
+
+.restore-badge-inline {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-tag);
+  font-weight: 500;
+}
+.restore-badge-inline.passed { background: #dcfce7; color: #16a34a; }
+.restore-badge-inline.failed { background: #fee2e2; color: #dc2626; }
+.restore-coverage-inline {
+  font-size: 11px;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.restore-missing-inline {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--danger, #dc2626);
+  opacity: 0.8;
 }
 
 /* KPI 格 */

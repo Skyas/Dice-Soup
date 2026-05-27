@@ -4,6 +4,13 @@
  * 启动时 upsert 到 DB（已存在的不覆盖，新增的写入）。
  */
 
+import {
+  DEFAULT_JUDGE_INSTRUCTIONS,
+  DEFAULT_RESTORE_INSTRUCTIONS,
+  DEFAULT_EXTRACT_METADATA_INSTRUCTIONS,
+  DEFAULT_SUMMARY_INSTRUCTIONS,
+} from '../modules/soup/soup-llm';
+
 export interface DefaultConfig {
   key: string;
   value: unknown;
@@ -12,8 +19,9 @@ export interface DefaultConfig {
   /**
    * - 'secret'：加密存储，不出现在 GET /api/admin/config 的公开响应中。
    *   通过 GET/PUT /api/admin/secrets/:key 单独管理。
+   * - 'prompt'：LLM 提示词，由专属 Prompts 编辑页管理。
    */
-  category: 'security' | 'llm' | 'game' | 'ui' | 'platform' | 'secret';
+  category: 'security' | 'llm' | 'game' | 'ui' | 'platform' | 'secret' | 'prompt';
 }
 
 export const DEFAULT_CONFIGS: DefaultConfig[] = [
@@ -277,6 +285,36 @@ export const DEFAULT_CONFIGS: DefaultConfig[] = [
     valueType: 'array',
     description: 'Bot 管理员 QQ 号列表（可通过 QQ 指令执行重启等管理操作）',
     category: 'security',
+  },
+
+  // ── Prompt 热编辑（可在 WebUI Prompts 页修改，立即生效） ──
+  {
+    key: 'soup.prompt.judge',
+    value: DEFAULT_JUDGE_INSTRUCTIONS,
+    valueType: 'string',
+    description: 'soup_judge 判定指令（拼接在题目 XML 之后，可覆盖默认规则）',
+    category: 'prompt',
+  },
+  {
+    key: 'soup.prompt.restore',
+    value: DEFAULT_RESTORE_INSTRUCTIONS,
+    valueType: 'string',
+    description: 'soup_restore 还原评判指令',
+    category: 'prompt',
+  },
+  {
+    key: 'soup.prompt.extract_metadata',
+    value: DEFAULT_EXTRACT_METADATA_INSTRUCTIONS,
+    valueType: 'string',
+    description: '题目元数据提取系统指令（key_points、sensitive_words）',
+    category: 'prompt',
+  },
+  {
+    key: 'soup.prompt.summary',
+    value: DEFAULT_SUMMARY_INSTRUCTIONS,
+    valueType: 'string',
+    description: '对局总结点评系统提示（支持 {{puzzle_title}} 等占位符）',
+    category: 'prompt',
   },
 
   // ── 平台 ──

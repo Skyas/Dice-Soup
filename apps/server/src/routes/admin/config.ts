@@ -12,6 +12,12 @@ import { createLogger } from '@dice-soup/logger';
 import { adminAuthMiddleware } from '../../middleware/admin-auth';
 import type { ConfigService } from '../../config/config-service';
 import type { AuditService } from '../../services/audit-service';
+import {
+  DEFAULT_JUDGE_INSTRUCTIONS,
+  DEFAULT_RESTORE_INSTRUCTIONS,
+  DEFAULT_EXTRACT_METADATA_INSTRUCTIONS,
+  DEFAULT_SUMMARY_INSTRUCTIONS,
+} from '../../modules/soup/soup-llm';
 
 const log = createLogger({ module: 'route:admin/config' });
 
@@ -29,6 +35,17 @@ export async function adminConfigRoutes(
   fastify.get('/api/admin/config', { preHandler: adminAuthMiddleware }, async (_req, reply) => {
     const items = configService.getAllItems();
     return reply.send({ items });
+  });
+
+  // GET /api/admin/config/prompt-defaults
+  // 返回代码内置的 Prompt 默认值（不受 DB 影响），供 WebUI「恢复默认」使用。
+  fastify.get('/api/admin/config/prompt-defaults', { preHandler: adminAuthMiddleware }, async (_req, reply) => {
+    return reply.send({
+      'soup.prompt.judge': DEFAULT_JUDGE_INSTRUCTIONS,
+      'soup.prompt.restore': DEFAULT_RESTORE_INSTRUCTIONS,
+      'soup.prompt.extract_metadata': DEFAULT_EXTRACT_METADATA_INSTRUCTIONS,
+      'soup.prompt.summary': DEFAULT_SUMMARY_INSTRUCTIONS,
+    });
   });
 
   // GET /api/admin/config/:key

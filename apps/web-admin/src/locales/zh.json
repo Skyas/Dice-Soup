@@ -4,14 +4,21 @@
       "overview": "总览",
       "operations": "运营",
       "content": "内容库",
+      "modules": "游戏模块",
       "system": "系统"
     },
     "items": {
       "dashboard": "Dashboard",
       "gameLogs": "游戏记录",
-      "sessions": "游戏会话",
+      "sessions": "会话监控",
+      "users": "玩家管理",
       "puzzles": "海龟汤题库",
+      "content": "内容管理",
+      "dice": "骰子",
+      "boardGame": "桌游仲裁",
+      "trpg": "跑团",
       "llmConfig": "AI 配置",
+      "prompts": "Prompt 调试",
       "config": "配置中心",
       "systemLogs": "系统日志",
       "audit": "审计日志"

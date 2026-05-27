@@ -17,6 +17,7 @@ import {
   addPlayer,
   applyAsk,
   applyRestore,
+  recordRestoreAttempt,
   applyHint,
   calcFinalScores,
   assertInvariant,
@@ -307,7 +308,7 @@ export class SoupHandler implements CommandHandler {
     if (puzzle.keyPoints.length === 0 || puzzle.sensitiveWords.length === 0) {
       log.info({ puzzleId: puzzle.id }, '[soup] 题目无 metadata，自动提取...');
       await ctx.reply('🔍 正在分析题目元数据，请稍候...');
-      const metaResult = await callExtractMetadata(this.llmRouter, puzzle);
+      const metaResult = await callExtractMetadata(this.llmRouter, puzzle, ctx.configService.getOptional<string>('soup.prompt.extract_metadata'));
       if (metaResult.ok) {
         await this.soupService.updatePuzzle(puzzle.id, {
           keyPoints: metaResult.value.key_points,
@@ -433,6 +434,7 @@ export class SoupHandler implements CommandHandler {
           meta: { hitWords, task: 'soup_judge', sessionId: session.id },
         });
       },
+      ctx.configService.getOptional<string>('soup.prompt.judge'),
     );
 
     if (!judgeResult.ok) {
@@ -442,13 +444,14 @@ export class SoupHandler implements CommandHandler {
 
     const { verdict, confidence, matched_key_points } = judgeResult.value;
 
-    // 更新贡献度
+    // 更新贡献度（同时将问题原文写入 questionLog）
     const { breakthroughIds } = applyAsk(
       snapshot.contribution,
       ctx.senderQQ,
       verdict,
       matched_key_points,
       puzzle.keyPoints,
+      question,
     );
 
     try {
@@ -624,7 +627,7 @@ export class SoupHandler implements CommandHandler {
     let restoreResult: Awaited<ReturnType<typeof callSoupRestore>>;
     try {
       restoreResult = await Promise.race([
-        callSoupRestore(this.llmRouter, puzzle, ctx.senderQQ, restoreText, leakThreshold, onRestoreLeakDetected),
+        callSoupRestore(this.llmRouter, puzzle, ctx.senderQQ, restoreText, leakThreshold, onRestoreLeakDetected, ctx.configService.getOptional<string>('soup.prompt.restore')),
         timeoutPromise,
       ]);
     } catch (e: any) {
@@ -663,7 +666,8 @@ export class SoupHandler implements CommandHandler {
     const { appPassed, coverage, missing_critical_ids } = restoreResult.value;
 
     if (appPassed) {
-      // 还原成功
+      // 还原成功：先记录本次还原尝试，再结算分数
+      recordRestoreAttempt(snapshot.contribution, ctx.senderQQ, restoreText, true, coverage, missing_critical_ids);
       this.sessionManager.clearActivityTimeout(session.id);
       applyRestore(
         snapshot.contribution,
@@ -722,6 +726,7 @@ export class SoupHandler implements CommandHandler {
         durationSec,
         snapshot.contribution.questionLog,
         pNames,
+        ctx.configService.getOptional<string>('soup.prompt.summary'),
       );
 
       const diffStars = '★'.repeat(puzzle.difficulty) + '☆'.repeat(5 - puzzle.difficulty);
@@ -734,7 +739,8 @@ export class SoupHandler implements CommandHandler {
         `📊 《${puzzle.title}》${diffStars}${tagsLine} · 用时 ${Math.floor(durationSec / 60)}分${durationSec % 60}秒`,
       );
     } else {
-      // 还原失败
+      // 还原失败：先记录本次还原尝试
+      recordRestoreAttempt(snapshot.contribution, ctx.senderQQ, restoreText, false, coverage, missing_critical_ids);
       snapshot.phase = 'running';
       snapshot.restoringBy = null;
       snapshot.restoringExpiresAt = null;

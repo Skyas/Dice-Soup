@@ -18,10 +18,19 @@ const log = createLogger({ module: 'route:admin/game-logs' });
 interface QuestionLogEntry {
   qq: string;
   questionIndex: number;
+  question?: string;
   verdict: string;
   matchedKeyPoints: string[];
   at: number;
-  question?: string;
+}
+
+interface RestoreLogEntry {
+  qq: string;
+  text: string;
+  passed: boolean;
+  coverage: number;
+  missingCriticalIds: string[];
+  at: number;
 }
 
 interface SoupSnapshot {
@@ -31,6 +40,7 @@ interface SoupSnapshot {
   startedAt?: number | null;
   contribution?: {
     questionLog?: QuestionLogEntry[];
+    restoreLog?: RestoreLogEntry[];
   };
 }
 
@@ -286,6 +296,7 @@ export async function adminGameLogsRoutes(
           puzzleId: snap.currentPuzzleId ?? null,
           puzzle,
           questionLog: snap.contribution?.questionLog ?? [],
+          restoreLog: snap.contribution?.restoreLog ?? [],
           playerNames,
           playerScores,
           memberCount: members.length,
