@@ -1,67 +1,69 @@
 <template>
-  <div style="display: flex; flex-direction: column; height: calc(100vh - 108px);">
-    <n-h2>Log Viewer</n-h2>
+  <div class="page" style="height: 100%; padding-bottom: 0;">
+    <!-- Header -->
+    <div class="page-head" style="flex-shrink: 0;">
+      <div>
+        <h1 class="page-title"><span class="accent-line" />{{ t('systemLogs.title') }}</h1>
+        <p class="page-sub">{{ t('systemLogs.sub') }}</p>
+      </div>
+    </div>
 
     <!-- 工具栏 -->
-    <n-space style="margin-bottom: 12px; flex-shrink: 0;" wrap>
-      <!-- 级别过滤 -->
+    <div class="log-toolbar" style="flex-shrink: 0;">
       <n-select
         v-model:value="filterLevel"
         :options="levelOptions"
         clearable
-        placeholder="日志级别"
-        style="width: 140px;"
+        :placeholder="t('systemLogs.filter.level')"
+        size="small"
+        style="width: 130px;"
       />
-      <!-- 模块过滤 -->
       <n-select
         v-model:value="filterModule"
         :options="moduleOptions"
         clearable
         filterable
-        placeholder="模块"
-        style="width: 160px;"
+        :placeholder="t('systemLogs.filter.module')"
+        size="small"
+        style="width: 150px;"
       />
-      <!-- 关键字搜索 -->
       <n-input
         v-model:value="filterKeyword"
         clearable
-        placeholder="关键字搜索"
+        :placeholder="t('systemLogs.filter.keyword')"
+        size="small"
         style="width: 200px;"
       />
-      <n-divider vertical />
-      <!-- 自动滚动 -->
-      <n-switch v-model:value="autoScroll">
-        <template #checked>自动滚动</template>
-        <template #unchecked>已暂停</template>
+      <div style="flex: 1;" />
+      <div class="status-dot" :class="wsConnected ? 'connected' : 'disconnected'" style="cursor: default;">
+        <span class="dot" :class="{ 'dot-pulse': wsConnected }" />
+        <span>{{ wsConnected ? t('systemLogs.ws.live') : t('systemLogs.ws.disconnected') }}</span>
+      </div>
+      <n-switch v-model:value="autoScroll" size="small">
+        <template #checked>{{ t('systemLogs.autoScroll') }}</template>
+        <template #unchecked>{{ t('systemLogs.paused') }}</template>
       </n-switch>
-      <!-- 清空 -->
-      <n-button size="small" @click="clearLogs">清空</n-button>
-      <!-- 导出 -->
-      <n-button size="small" @click="exportLogs">导出 JSON</n-button>
-      <!-- 连接状态 -->
-      <n-tag :type="wsConnected ? 'success' : 'error'" size="small">
-        {{ wsConnected ? '● 实时' : '○ 断线' }}
-      </n-tag>
-    </n-space>
+      <button class="btn" @click="clearLogs">{{ t('systemLogs.clear') }}</button>
+      <button class="btn" @click="exportLogs">
+        <DsIcon name="download" :size="13" /> {{ t('systemLogs.exportJson') }}
+      </button>
+    </div>
 
     <!-- 日志列表 -->
-    <div
-      ref="logContainer"
-      class="log-container"
-      @scroll="handleScroll"
-    >
+    <div ref="logContainer" class="log-container" @scroll="handleScroll">
       <div
         v-for="(entry, idx) in filteredLogs"
         :key="idx"
-        :class="['log-entry', `level-${entry.level ?? 'info'}`]"
+        :class="['log-entry', `level-${entry.level ?? 30}`]"
       >
         <span class="log-time">{{ formatTime(entry.time) }}</span>
         <span class="log-level">{{ levelLabel(entry.level) }}</span>
         <span class="log-module">{{ entry.module ?? '-' }}</span>
         <span class="log-msg">{{ entry.msg ?? JSON.stringify(entry) }}</span>
       </div>
-      <div v-if="filteredLogs.length === 0" style="color: #666; padding: 20px;">
-        暂无日志
+      <div v-if="filteredLogs.length === 0" class="log-empty">
+        <DsIcon name="terminal" :size="20" style="opacity: 0.3;" />
+        <span>{{ t('systemLogs.empty') }}</span>
       </div>
     </div>
   </div>
@@ -69,10 +71,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import {
-  NH2, NSpace, NSelect, NInput, NSwitch, NButton, NTag, NDivider,
-} from 'naive-ui'
+import { NSelect, NInput, NSwitch } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+import DsIcon from '@/components/DsIcon.vue'
 import { useAuthStore } from '@/stores/auth'
+
+const { t } = useI18n()
 
 interface LogEntry {
   time?: number
@@ -210,30 +214,67 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.log-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  flex-wrap: wrap;
+}
+
 .log-container {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  background: #0d1117;
-  border-radius: 6px;
-  padding: 8px;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  background: var(--log-bg);
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  padding: 6px 0;
+  font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.7;
+  /* stretch to fill remaining height in page */
+  height: calc(100vh - 260px);
 }
+
 .log-entry {
   display: flex;
-  gap: 8px;
-  padding: 1px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  gap: 10px;
+  padding: 1px 12px;
+  border-bottom: 1px solid var(--log-border);
+  transition: background 80ms;
 }
-.log-time   { color: #666;    min-width: 90px; flex-shrink: 0; }
-.log-level  { min-width: 50px; flex-shrink: 0; font-weight: bold; }
-.log-module { color: #7c8cf8; min-width: 120px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.log-msg    { color: #e6edf3; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.level-30 .log-level { color: #3fb950; }  /* info */
-.level-40 .log-level { color: #d29922; }  /* warn */
-.level-50 .log-level { color: #f85149; }  /* error */
-.level-60 .log-level { color: #ff0000; }  /* fatal */
-.level-20 .log-level { color: #8b949e; }  /* debug */
-.level-10 .log-level { color: #484f58; }  /* trace */
+.log-entry:hover { background: var(--log-hover); }
+
+.log-time   { color: var(--fg-faint); min-width: 88px; flex-shrink: 0; }
+.log-level  { min-width: 48px; flex-shrink: 0; font-weight: 600; }
+.log-module { color: var(--role-pl); min-width: 120px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-msg    { color: var(--fg-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.level-30 .log-level { color: var(--success); }
+.level-40 .log-level { color: var(--warning); }
+.level-50 .log-level { color: var(--danger); }
+.level-60 .log-level { color: #ff4444; }
+.level-20 .log-level { color: var(--fg-muted); }
+.level-10 .log-level { color: var(--fg-faint); }
+
+.level-50 .log-msg,
+.level-60 .log-msg { color: var(--log-msg-error); }
+.level-40 .log-msg  { color: var(--log-msg-warn); }
+
+.log-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 120px;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
 </style>

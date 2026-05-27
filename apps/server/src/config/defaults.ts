@@ -4,12 +4,24 @@
  * 启动时 upsert 到 DB（已存在的不覆盖，新增的写入）。
  */
 
+import {
+  DEFAULT_JUDGE_INSTRUCTIONS,
+  DEFAULT_RESTORE_INSTRUCTIONS,
+  DEFAULT_EXTRACT_METADATA_INSTRUCTIONS,
+  DEFAULT_SUMMARY_INSTRUCTIONS,
+} from '../modules/soup/soup-llm';
+
 export interface DefaultConfig {
   key: string;
   value: unknown;
   valueType: 'number' | 'string' | 'boolean' | 'object' | 'array';
   description: string;
-  category: 'security' | 'llm' | 'game' | 'ui' | 'platform';
+  /**
+   * - 'secret'：加密存储，不出现在 GET /api/admin/config 的公开响应中。
+   *   通过 GET/PUT /api/admin/secrets/:key 单独管理。
+   * - 'prompt'：LLM 提示词，由专属 Prompts 编辑页管理。
+   */
+  category: 'security' | 'llm' | 'game' | 'ui' | 'platform' | 'secret' | 'prompt';
 }
 
 export const DEFAULT_CONFIGS: DefaultConfig[] = [
@@ -123,7 +135,32 @@ export const DEFAULT_CONFIGS: DefaultConfig[] = [
     category: 'game',
   },
 
+  // ── 日志 ──
+  {
+    key: 'log.level',
+    value: 'info',
+    valueType: 'string',
+    description: '日志级别（trace / debug / info / warn / error / fatal）',
+    category: 'ui',
+  },
+
   // ── LLM ──
+  {
+    key: 'llm.providers',
+    value: [
+      {
+        id: 'deepseek',
+        name: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com/v1',
+        apiKeyEnv: 'DEEPSEEK_API_KEY',
+        models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+        enabled: true,
+      },
+    ],
+    valueType: 'array',
+    description: '已注册的 LLM Provider 列表（增删后需重启生效）',
+    category: 'llm',
+  },
   {
     key: 'llm.default_provider',
     value: 'deepseek',
@@ -142,10 +179,26 @@ export const DEFAULT_CONFIGS: DefaultConfig[] = [
       game_arbitrate: 'deepseek-v4-flash',
       summary: 'deepseek-v4-flash',
       intent_parse: 'deepseek-v4-flash',
+      puzzle_extract_metadata: 'deepseek-v4-flash',
     },
     valueType: 'object',
     description: '任务类型 → 模型 ID 映射表',
     category: 'llm',
+  },
+  // ── 机密配置（secret 类别：加密存储，不在 GET /api/admin/config 中公开） ──
+  {
+    key: 'llm.provider_keys',
+    value: {},
+    valueType: 'object',
+    description: 'LLM Provider API Key 加密存储（key = provider id，value = 加密密文）',
+    category: 'secret',
+  },
+  {
+    key: 'onebot.access_token',
+    value: '',
+    valueType: 'string',
+    description: 'NapCat / OneBot 鉴权 Token（加密存储）',
+    category: 'secret',
   },
 
   // ── 海龟汤游戏（Phase 2） ──
@@ -225,6 +278,43 @@ export const DEFAULT_CONFIGS: DefaultConfig[] = [
     valueType: 'array',
     description: 'VIP QQ 号列表（可重复游玩同题、私聊开局等特权）',
     category: 'game',
+  },
+  {
+    key: 'bot.admin_qq_list',
+    value: ['897437055'],
+    valueType: 'array',
+    description: 'Bot 管理员 QQ 号列表（可通过 QQ 指令执行重启等管理操作）',
+    category: 'security',
+  },
+
+  // ── Prompt 热编辑（可在 WebUI Prompts 页修改，立即生效） ──
+  {
+    key: 'soup.prompt.judge',
+    value: DEFAULT_JUDGE_INSTRUCTIONS,
+    valueType: 'string',
+    description: 'soup_judge 判定指令（拼接在题目 XML 之后，可覆盖默认规则）',
+    category: 'prompt',
+  },
+  {
+    key: 'soup.prompt.restore',
+    value: DEFAULT_RESTORE_INSTRUCTIONS,
+    valueType: 'string',
+    description: 'soup_restore 还原评判指令',
+    category: 'prompt',
+  },
+  {
+    key: 'soup.prompt.extract_metadata',
+    value: DEFAULT_EXTRACT_METADATA_INSTRUCTIONS,
+    valueType: 'string',
+    description: '题目元数据提取系统指令（key_points、sensitive_words）',
+    category: 'prompt',
+  },
+  {
+    key: 'soup.prompt.summary',
+    value: DEFAULT_SUMMARY_INSTRUCTIONS,
+    valueType: 'string',
+    description: '对局总结点评系统提示（支持 {{puzzle_title}} 等占位符）',
+    category: 'prompt',
   },
 
   // ── 平台 ──

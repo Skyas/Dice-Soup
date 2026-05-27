@@ -15,35 +15,39 @@ const router = createRouter({
       component: () => import('@/views/admin/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        {
-          path: '',
-          redirect: '/dashboard',
-        },
+        { path: '', redirect: '/dashboard' },
+
+        // ── 总览 ───────────────────────────────────────────────────
         {
           path: 'dashboard',
           name: 'Dashboard',
           component: () => import('@/views/admin/DashboardView.vue'),
         },
+
+        // ── 运营 ───────────────────────────────────────────────────
         {
           path: 'logs',
-          name: 'LogViewer',
-          component: () => import('@/views/admin/LogViewer.vue'),
+          name: 'GameLogs',
+          component: () => import('@/views/admin/GameLogsView.vue'),
         },
         {
-          path: 'config',
-          name: 'Config',
-          component: () => import('@/views/admin/ConfigView.vue'),
-        },
-        {
-          path: 'puzzles',
-          name: 'Puzzles',
-          component: () => import('@/views/admin/PuzzlesView.vue'),
+          path: 'sessions',
+          name: 'Sessions',
+          component: () => import('@/views/admin/PlaceholderView.vue'),
+          props: { title: '会话监控', phase: 2 },
         },
         {
           path: 'users',
           name: 'Users',
           component: () => import('@/views/admin/PlaceholderView.vue'),
-          props: { title: '用户管理', phase: 2 },
+          props: { title: '玩家管理', phase: 2 },
+        },
+
+        // ── 内容库 ─────────────────────────────────────────────────
+        {
+          path: 'puzzles',
+          name: 'Puzzles',
+          component: () => import('@/views/admin/PuzzlesView.vue'),
         },
         {
           path: 'content',
@@ -51,11 +55,47 @@ const router = createRouter({
           component: () => import('@/views/admin/PlaceholderView.vue'),
           props: { title: '内容管理', phase: 2 },
         },
+
+        // ── 游戏模块 ───────────────────────────────────────────────
         {
-          path: 'sessions',
-          name: 'Sessions',
+          path: 'dice',
+          name: 'Dice',
           component: () => import('@/views/admin/PlaceholderView.vue'),
-          props: { title: '会话监控', phase: 2 },
+          props: { title: '骰子', phase: 2 },
+        },
+        {
+          path: 'board-game',
+          name: 'BoardGame',
+          component: () => import('@/views/admin/PlaceholderView.vue'),
+          props: { title: '桌游仲裁', phase: 2 },
+        },
+        {
+          path: 'trpg',
+          name: 'Trpg',
+          component: () => import('@/views/admin/PlaceholderView.vue'),
+          props: { title: '跑团', phase: 2 },
+        },
+
+        // ── 系统 ───────────────────────────────────────────────────
+        {
+          path: 'llm-config',
+          name: 'LLMConfig',
+          component: () => import('@/views/admin/LLMConfigView.vue'),
+        },
+        {
+          path: 'prompts',
+          name: 'Prompts',
+          component: () => import('@/views/admin/PromptsView.vue'),
+        },
+        {
+          path: 'config',
+          name: 'Config',
+          component: () => import('@/views/admin/ConfigView.vue'),
+        },
+        {
+          path: 'system-logs',
+          name: 'SystemLogs',
+          component: () => import('@/views/admin/LogViewer.vue'),
         },
         {
           path: 'audit',

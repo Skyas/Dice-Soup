@@ -1,0 +1,345 @@
+{
+  "nav": {
+    "groups": {
+      "overview": "总览",
+      "operations": "运营",
+      "content": "内容库",
+      "modules": "游戏模块",
+      "system": "系统"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "gameLogs": "游戏记录",
+      "sessions": "会话监控",
+      "users": "玩家管理",
+      "puzzles": "海龟汤题库",
+      "content": "内容管理",
+      "dice": "骰子",
+      "boardGame": "桌游仲裁",
+      "trpg": "跑团",
+      "llmConfig": "AI 配置",
+      "prompts": "Prompt 调试",
+      "config": "配置中心",
+      "systemLogs": "系统日志",
+      "audit": "审计日志"
+    }
+  },
+  "sidebar": {
+    "role": "超级管理员",
+    "logout": "退出登录",
+    "logoutSuccess": "已退出登录"
+  },
+  "topbar": {
+    "botOnline": "Bot 在线",
+    "botOffline": "Bot 离线",
+    "botChecking": "检测中",
+    "botTooltipOnline": "NapCat 已连接，点击刷新",
+    "botTooltipOffline": "NapCat 未连接，请检查进程后点击刷新",
+    "botTooltipChecking": "正在检测 Bot 连接状态...",
+    "themeLight": "切换到羊皮纸主题",
+    "themeDark": "切换到暗色主题"
+  },
+  "login": {
+    "title": "欢迎回来",
+    "subtitle": "管理员登录",
+    "username": "用户名",
+    "password": "密码",
+    "submit": "登录",
+    "submitting": "登录中...",
+    "success": "登录成功",
+    "error": "用户名或密码错误"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "sub": "系统运行状态一览",
+    "tiles": {
+      "puzzles": "题库数量",
+      "activeSessions": "活跃场次",
+      "botStatus": "Bot 状态",
+      "today": "今日互动"
+    },
+    "tileValues": {
+      "online": "在线",
+      "offline": "离线",
+      "checking": "检测中"
+    },
+    "phase": {
+      "title": "Phase 1 — 进行中",
+      "sub": "核心功能已上线，持续完善中",
+      "done": "已完成",
+      "inProgress": "进行中",
+      "pending": "待开发"
+    },
+    "quickLinks": {
+      "title": "快速入口"
+    }
+  },
+  "puzzles": {
+    "title": "海龟汤题库",
+    "sub": "共 {n} 道题目",
+    "newPuzzle": "新建题目",
+    "refresh": "刷新",
+    "filter": {
+      "state": "状态筛选",
+      "difficulty": "难度"
+    },
+    "states": {
+      "draft": "草稿",
+      "active": "激活",
+      "archived": "归档",
+      "rejected": "拒绝",
+      "extractionFailed": "提取失败"
+    },
+    "card": {
+      "plays": "游玩",
+      "keyPoints": "线索",
+      "keyPointsNone": "未提取",
+      "publish": "上架",
+      "archive": "归档"
+    },
+    "empty": "暂无题目，点击「新建题目」开始录入",
+    "loading": "加载中...",
+    "form": {
+      "createTitle": "新建题目",
+      "editTitle": "编辑题目",
+      "fieldTitle": "标题",
+      "fieldDifficulty": "难度",
+      "fieldTags": "标签",
+      "fieldSurface": "汤面",
+      "fieldTruth": "真相",
+      "fieldHints": "提示",
+      "fieldTime": "预计用时",
+      "fieldSource": "来源",
+      "fieldKeyPoints": "关键线索",
+      "titlePlaceholder": "20字以内",
+      "surfacePlaceholder": "玩家看到的谜面（300字以内）",
+      "truthPlaceholder": "完整真相（500字以内）",
+      "hintPlaceholder": "每条提示（100字以内）",
+      "keyPointsHint": "可选。留空则保存后点击「提取 metadata」由 AI 自动生成。",
+      "addKeyPoint": "+ 添加线索",
+      "keyPointCritical": "必要（critical）",
+      "remove": "删除",
+      "keyPointLabel": "线索 {n}",
+      "cancel": "取消",
+      "save": "保存",
+      "create": "创建",
+      "minutes": "分钟（可选）",
+      "stars": "{n}★"
+    },
+    "sources": {
+      "adminInput": "管理员录入",
+      "original": "原创",
+      "community": "社区投稿",
+      "publicUnverified": "公开题库"
+    },
+    "detail": {
+      "title": "题目详情",
+      "fieldId": "ID",
+      "fieldState": "状态",
+      "fieldDifficulty": "难度",
+      "fieldTags": "标签",
+      "fieldSurface": "汤面",
+      "fieldTruth": "真相",
+      "fieldHints": "提示",
+      "fieldKeyPoints": "关键线索",
+      "fieldSensitive": "敏感词",
+      "fieldPlayCount": "游玩次数",
+      "keyPointsEmpty": "（未提取，点击「提取 metadata」）",
+      "sensitiveEmpty": "（未提取）",
+      "publish": "上架激活",
+      "archiveOff": "归档下架",
+      "edit": "编辑",
+      "extract": "🤖 提取 metadata"
+    },
+    "messages": {
+      "loadError": "加载失败：{msg}",
+      "saveSuccess": "保存成功",
+      "createSuccess": "创建成功",
+      "saveError": "操作失败：{msg}",
+      "stateSuccess": "状态已切换为 {state}",
+      "stateError": "切换失败：{msg}",
+      "extractSuccess": "metadata 提取成功（{n} 个关键线索）",
+      "extractError": "提取失败：{msg}"
+    }
+  },
+  "config": {
+    "title": "配置中心",
+    "sub": "修改立即生效（热更新），无需重启",
+    "refresh": "刷新",
+    "notice": "敏感配置（API Key、Token 等）请在 .env 文件中修改，不会出现在此处。",
+    "loading": "加载配置中…",
+    "nItems": "{n} 项",
+    "empty": "暂无配置项",
+    "edit": "编辑",
+    "cancel": "取消",
+    "save": "保存",
+    "modal": {
+      "title": "修改配置项",
+      "fieldValue": "值（JSON 格式）",
+      "placeholder": "输入 JSON 格式的值（字符串需加引号）",
+      "success": "配置已更新",
+      "errorJson": "JSON 格式错误，请检查",
+      "errorLoad": "加载配置失败",
+      "errorUpdate": "更新失败"
+    },
+    "categories": {
+      "security": "安全",
+      "llm": "AI 模型",
+      "game": "游戏规则",
+      "ui": "界面",
+      "platform": "平台"
+    },
+    "categoryDescs": {
+      "security": "认证、权限与安全策略",
+      "llm": "大语言模型选择与参数调整",
+      "game": "海龟汤及桌游流程配置",
+      "ui": "界面展示与交互偏好",
+      "platform": "OneBot 与外部平台连接参数"
+    }
+  },
+  "llmConfig": {
+    "title": "AI 配置",
+    "sub": "Provider 管理与任务路由",
+    "providers": {
+      "title": "Provider 配置",
+      "sub": "当前已注册的 LLM Provider",
+      "envNote": "API Key 环境变量",
+      "models": "可用模型",
+      "setDefault": "设为默认",
+      "isDefault": "当前默认",
+      "defaultLabel": "默认 Provider",
+      "add": "添加 Provider",
+      "addTitle": "添加 Provider",
+      "editTitle": "编辑 Provider",
+      "empty": "暂无 Provider，点击「添加 Provider」开始配置",
+      "restartNotice": "新增或删除 Provider 需重启服务器后生效",
+      "deleteTitle": "删除 Provider",
+      "deleteConfirm": "确认删除 Provider「{id}」？此操作不可撤销。",
+      "saveSuccess": "Provider 已保存",
+      "deleteSuccess": "已删除 Provider「{id}」",
+      "saveError": "保存失败：{msg}",
+      "deleteError": "删除失败：{msg}",
+      "apiKeySet": "已设置",
+      "apiKeyNotSet": "未配置",
+      "apiKeyMasked": "{masked}",
+      "setKey": "设置 API Key",
+      "keyModalTitle": "设置 API Key — {name}",
+      "keyField": "API Key",
+      "keyPlaceholder": "粘贴 API Key...",
+      "keySetSuccess": "{name} API Key 已保存",
+      "keyDeleteSuccess": "{name} API Key 已删除",
+      "keyError": "保存失败：{msg}",
+      "form": {
+        "fieldId": "Provider ID",
+        "fieldName": "显示名",
+        "fieldBaseUrl": "API Base URL",
+        "fieldModels": "可用模型（逗号分隔）",
+        "idPlaceholder": "如：deepseek",
+        "namePlaceholder": "如：DeepSeek",
+        "baseUrlPlaceholder": "如：https://api.deepseek.com/v1",
+        "modelsPlaceholder": "如：deepseek-v4-flash,deepseek-v4-pro"
+      }
+    },
+    "restart": {
+      "btn": "重启服务器",
+      "modalTitle": "重启服务器",
+      "modalContent": "重启期间 Bot 将短暂离线（约 10 秒）。Provider 配置变更需重启后生效。确认继续？",
+      "reasonLabel": "重启原因（可选）",
+      "reasonPlaceholder": "如：更新 Provider 配置",
+      "confirm": "确认重启",
+      "triggering": "正在触发重启...",
+      "waiting": "服务器重启中，请稍候...",
+      "reconnecting": "正在重新连接 ({s}s)...",
+      "success": "服务器已恢复！",
+      "failed": "重启超时，请检查服务器进程"
+    },
+    "routing": {
+      "title": "任务路由",
+      "sub": "每种任务类型使用的模型配置",
+      "task": "任务类型",
+      "model": "模型 ID",
+      "description": "说明",
+      "edit": "更改",
+      "save": "保存",
+      "cancel": "取消",
+      "placeholder": "如：deepseek-v4-flash",
+      "success": "路由已更新",
+      "error": "更新失败：{msg}",
+      "saveAll": "批量保存",
+      "saveAllSuccess": "所有路由已保存"
+    },
+    "tasks": {
+      "soup_judge": "汤底判定",
+      "soup_restore": "还原判定",
+      "puzzle_extract_metadata": "元数据提取",
+      "intent_parse": "意图识别",
+      "dice_nl_parse": "骰子解析",
+      "game_arbitrate": "桌游仲裁",
+      "trpg_narrate": "跑团叙事",
+      "trpg_npc": "NPC 对话",
+      "summary": "游戏总结"
+    },
+    "taskDescs": {
+      "soup_judge": "判断玩家提问是/否/无关/部分正确",
+      "soup_restore": "验证玩家对真相的还原完整度",
+      "puzzle_extract_metadata": "从题目文本提取关键线索与敏感词",
+      "intent_parse": "自然语言 → 指令白名单匹配",
+      "dice_nl_parse": "自然语言 → 骰子表达式转换",
+      "game_arbitrate": "桌游规则仲裁与结果播报",
+      "trpg_narrate": "跑团场景描述与叙事推进",
+      "trpg_npc": "跑团 NPC 角色扮演对话",
+      "summary": "场次结束后的复盘与总结"
+    },
+    "messages": {
+      "loadError": "加载配置失败：{msg}",
+      "defaultSuccess": "已将 {id} 设为默认 Provider",
+      "defaultError": "设置失败：{msg}"
+    }
+  },
+  "systemLogs": {
+    "title": "系统日志",
+    "sub": "实时 WebSocket 流 · 最多保留 2000 条",
+    "filter": {
+      "level": "日志级别",
+      "module": "模块",
+      "keyword": "关键字搜索"
+    },
+    "ws": {
+      "live": "实时",
+      "disconnected": "断线"
+    },
+    "autoScroll": "自动滚动",
+    "paused": "已暂停",
+    "clear": "清空",
+    "exportJson": "JSON",
+    "empty": "暂无日志"
+  },
+  "gameLogs": {
+    "title": "游戏记录",
+    "sub": "{n} 场对局",
+    "tiles": {
+      "total": "累计对局",
+      "totalSub": "海龟汤已完成场次",
+      "monthNew": "本月新增",
+      "monthSub": "本月对局场次",
+      "avgLength": "平均场长",
+      "avgLengthUnit": "分钟 / 场"
+    },
+    "filterState": "状态筛选",
+    "empty": "暂无对局记录",
+    "filterTime": "时间范围",
+    "exportAll": "全部导出"
+  },
+  "common": {
+    "soon": "soon",
+    "loading": "加载中…",
+    "noData": "暂无数据",
+    "confirm": "确认",
+    "cancel": "取消",
+    "save": "保存",
+    "edit": "编辑",
+    "delete": "删除",
+    "refresh": "刷新",
+    "back": "返回"
+  }
+}

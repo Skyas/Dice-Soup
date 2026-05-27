@@ -53,6 +53,7 @@ export function initialSoupState(): SoupRuntimeState {
       players: {},
       keyPointsTriggered: {},
       questionLog: [],
+      restoreLog: [],
     },
     restoringBy: null,
     restoringExpiresAt: null,

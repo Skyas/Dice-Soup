@@ -30,6 +30,7 @@ import { StatsHandler } from './handlers/stats';
 import { PlaceholderHandler } from './handlers/placeholder';
 import { SoupHandler } from './handlers/soup';
 import { StopHandler } from './handlers/stop';
+import { RestartHandler } from './handlers/restart';
 import type { SessionManager } from '../services/session-manager';
 import type { SoupService } from '../services/soup-service';
 import type { LLMRouter } from '@dice-soup/llm-router';
@@ -79,6 +80,7 @@ export class CommandRouter {
   private registerBuiltinHandlers(): void {
     this.registry.register(new PingHandler());
     this.registry.register(new HelpHandler(this.registry));
+    this.registry.register(new RestartHandler());
     // StatsHandler 需要 SoupService，在 registerGameHandlers() 中注册
 
     // 其他游戏占位指令
@@ -174,6 +176,7 @@ export class CommandRouter {
     }
 
     // ── RBAC 简化检查（第一阶段：system 级指令拒绝普通用户） ─────────────
+    // requiredRole === 'admin' 的 write 指令（如 .restart）在 handler 内自行做 admin_qq_list 鉴权
     if (handler.meta.action === 'system') {
       await this.sendReply(message, '⛔ 该指令仅限管理员通过 Web 后台操作');
       await this.auditService.logPermissionDeny(senderQQ, commandName, handler.meta.requiredRole);

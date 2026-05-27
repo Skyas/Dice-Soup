@@ -18,7 +18,8 @@ import type { Logger } from '@dice-soup/logger';
 import type { ILLMProvider, ChatMessage, ModelId, ChatResponse } from '../types';
 
 export interface DeepSeekProviderOptions {
-  apiKey: string;
+  /** 动态获取 API Key 的函数，每次 chat() 调用时执行，支持运行时热更新 */
+  getApiKey: () => string;
   /** 请求超时（毫秒），默认 30000 */
   timeoutMs?: number;
   /** 最大重试次数，默认 2 */
@@ -36,17 +37,32 @@ const DEEPSEEK_BASE_URL = 'https://api.deepseek.com';
 export class DeepSeekProvider implements ILLMProvider {
   readonly providerId = 'deepseek';
 
-  private readonly client: OpenAI;
+  private readonly getApiKey: () => string;
+  private readonly timeoutMs: number;
+  private readonly maxRetries: number;
   private readonly log: Logger;
+  private cachedKey: string = '';
+  private client!: OpenAI;
 
   constructor(options: DeepSeekProviderOptions, log: Logger) {
     this.log = log;
-    this.client = new OpenAI({
-      apiKey: options.apiKey,
-      baseURL: DEEPSEEK_BASE_URL,
-      timeout: options.timeoutMs ?? 30_000,
-      maxRetries: options.maxRetries ?? 2,
-    });
+    this.getApiKey = options.getApiKey;
+    this.timeoutMs = options.timeoutMs ?? 30_000;
+    this.maxRetries = options.maxRetries ?? 2;
+  }
+
+  private resolveClient(): OpenAI {
+    const key = this.getApiKey();
+    if (key !== this.cachedKey) {
+      this.cachedKey = key;
+      this.client = new OpenAI({
+        apiKey: key,
+        baseURL: DEEPSEEK_BASE_URL,
+        timeout: this.timeoutMs,
+        maxRetries: this.maxRetries,
+      });
+    }
+    return this.client;
   }
 
   async chat(
@@ -59,7 +75,7 @@ export class DeepSeekProvider implements ILLMProvider {
       '[deepseek] 发起 API 调用',
     );
 
-    const completion = await this.client.chat.completions.create({
+    const completion = await this.resolveClient().chat.completions.create({
       model,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       ...(maxTokens ? { max_tokens: maxTokens } : {}),

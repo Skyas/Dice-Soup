@@ -17,17 +17,30 @@ export interface PlayerState {
   score: number;
 }
 
+export interface QuestionLogEntry {
+  qq: string;
+  questionIndex: number;
+  question: string;
+  verdict: 'yes' | 'no' | 'irrelevant' | 'partial';
+  matchedKeyPoints: string[];
+  at: number;
+}
+
+export interface RestoreLogEntry {
+  qq: string;
+  text: string;
+  passed: boolean;
+  coverage: number;
+  missingCriticalIds: string[];
+  at: number;
+}
+
 export interface ContributionState {
   pools: { exploration: number; breakthrough: number; endgame: number };
   players: Record<string, PlayerState>;
   keyPointsTriggered: Record<string, { triggeredByQq: string; atQuestionIndex: number }>;
-  questionLog: Array<{
-    qq: string;
-    questionIndex: number;
-    verdict: 'yes' | 'no' | 'irrelevant' | 'partial';
-    matchedKeyPoints: string[];
-    at: number;
-  }>;
+  questionLog: QuestionLogEntry[];
+  restoreLog: RestoreLogEntry[];
 }
 
 // ── 初始化 ────────────────────────────────────────────────────────────────────
@@ -39,6 +52,7 @@ export function initContributionState(players: string[]): ContributionState {
     players: {},
     keyPointsTriggered: {},
     questionLog: [],
+    restoreLog: [],
   };
 
   for (const qq of players) {
@@ -99,6 +113,7 @@ export function applyAsk(
   verdict: 'yes' | 'no' | 'irrelevant' | 'partial',
   matchedKeyPoints: string[],
   keyPoints: KeyPoint[],
+  question: string,
 ): { breakthroughIds: string[] } {
   const player = state.players[qq];
   if (!player) return { breakthroughIds: [] };
@@ -164,6 +179,7 @@ export function applyAsk(
   state.questionLog.push({
     qq,
     questionIndex,
+    question,
     verdict,
     matchedKeyPoints,
     at: Math.floor(Date.now() / 1000),
@@ -211,6 +227,28 @@ export function applyRestore(
       }
     }
   }
+}
+
+/**
+ * 记录一次还原尝试（无论成败），供事后复盘。
+ */
+export function recordRestoreAttempt(
+  state: ContributionState,
+  qq: string,
+  text: string,
+  passed: boolean,
+  coverage: number,
+  missingCriticalIds: string[],
+): void {
+  if (!state.restoreLog) state.restoreLog = [];
+  state.restoreLog.push({
+    qq,
+    text,
+    passed,
+    coverage,
+    missingCriticalIds,
+    at: Math.floor(Date.now() / 1000),
+  });
 }
 
 /**

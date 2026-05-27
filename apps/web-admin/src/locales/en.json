@@ -1,0 +1,346 @@
+{
+  "nav": {
+    "groups": {
+      "overview": "Overview",
+      "operations": "Operations",
+      "content": "Content",
+      "system": "System"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "gameLogs": "Game Logs",
+      "sessions": "Sessions",
+      "puzzles": "Puzzle Library",
+      "llmConfig": "AI Config",
+      "config": "Settings",
+      "systemLogs": "System Logs",
+      "audit": "Audit Logs"
+    }
+  },
+  "sidebar": {
+    "role": "Super Admin",
+    "logout": "Log Out",
+    "logoutSuccess": "Logged out"
+  },
+  "topbar": {
+    "botOnline": "Bot Online",
+    "botOffline": "Bot Offline",
+    "botChecking": "Checking...",
+    "botTooltipOnline": "NapCat connected — click to refresh",
+    "botTooltipOffline": "NapCat disconnected — check the process then click to refresh",
+    "botTooltipChecking": "Checking bot connection status...",
+    "themeLight": "Switch to Parchment",
+    "themeDark": "Switch to Dark"
+  },
+  "login": {
+    "title": "Welcome Back",
+    "subtitle": "Admin Login",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign In",
+    "submitting": "Signing in...",
+    "success": "Logged in",
+    "error": "Invalid username or password"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "sub": "System status at a glance",
+    "tiles": {
+      "puzzles": "Puzzle Count",
+      "activeSessions": "Active Sessions",
+      "botStatus": "Bot Status",
+      "today": "Today's Interactions"
+    },
+    "tileValues": {
+      "online": "Online",
+      "offline": "Offline",
+      "checking": "Checking"
+    },
+    "phase": {
+      "title": "Phase 1 — In Progress",
+      "sub": "Core features live, continuously improving",
+      "done": "Done",
+      "inProgress": "In Progress",
+      "pending": "Pending"
+    },
+    "quickLinks": {
+      "title": "Quick Links"
+    }
+  },
+  "puzzles": {
+    "title": "Puzzle Library",
+    "sub": "{n} puzzles total",
+    "newPuzzle": "New Puzzle",
+    "refresh": "Refresh",
+    "filter": {
+      "state": "Filter by State",
+      "difficulty": "Difficulty"
+    },
+    "states": {
+      "draft": "Draft",
+      "active": "Active",
+      "archived": "Archived",
+      "rejected": "Rejected",
+      "extractionFailed": "Extract Failed"
+    },
+    "card": {
+      "plays": "Plays",
+      "keyPoints": "Clues",
+      "keyPointsNone": "Not extracted",
+      "publish": "Publish",
+      "archive": "Archive"
+    },
+    "empty": "No puzzles yet — click \"New Puzzle\" to get started",
+    "loading": "Loading...",
+    "form": {
+      "createTitle": "New Puzzle",
+      "editTitle": "Edit Puzzle",
+      "fieldTitle": "Title",
+      "fieldDifficulty": "Difficulty",
+      "fieldTags": "Tags",
+      "fieldSurface": "Surface",
+      "fieldTruth": "Truth",
+      "fieldHints": "Hints",
+      "fieldTime": "Est. Time",
+      "fieldSource": "Source",
+      "fieldKeyPoints": "Key Points",
+      "titlePlaceholder": "Max 20 characters",
+      "surfacePlaceholder": "The puzzle players see (max 300 chars)",
+      "truthPlaceholder": "The full truth (max 500 chars)",
+      "hintPlaceholder": "Each hint (max 100 chars)",
+      "keyPointsHint": "Optional. Leave blank to auto-extract via AI after saving.",
+      "addKeyPoint": "+ Add Clue",
+      "keyPointCritical": "Critical",
+      "remove": "Remove",
+      "keyPointLabel": "Clue {n}",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create",
+      "minutes": "minutes (optional)",
+      "stars": "{n}★"
+    },
+    "sources": {
+      "adminInput": "Admin Input",
+      "original": "Original",
+      "community": "Community",
+      "publicUnverified": "Public (Unverified)"
+    },
+    "detail": {
+      "title": "Puzzle Detail",
+      "fieldId": "ID",
+      "fieldState": "State",
+      "fieldDifficulty": "Difficulty",
+      "fieldTags": "Tags",
+      "fieldSurface": "Surface",
+      "fieldTruth": "Truth",
+      "fieldHints": "Hints",
+      "fieldKeyPoints": "Key Points",
+      "fieldSensitive": "Sensitive Words",
+      "fieldPlayCount": "Play Count",
+      "keyPointsEmpty": "(Not extracted — click \"Extract metadata\")",
+      "sensitiveEmpty": "(Not extracted)",
+      "publish": "Publish",
+      "archiveOff": "Archive",
+      "edit": "Edit",
+      "extract": "🤖 Extract metadata"
+    },
+    "messages": {
+      "loadError": "Load failed: {msg}",
+      "saveSuccess": "Saved",
+      "createSuccess": "Created",
+      "saveError": "Failed: {msg}",
+      "stateSuccess": "State changed to {state}",
+      "stateError": "State change failed: {msg}",
+      "extractSuccess": "Extracted {n} key point(s)",
+      "extractError": "Extraction failed: {msg}"
+    }
+  },
+  "config": {
+    "title": "Settings",
+    "sub": "Changes take effect immediately (hot reload)",
+    "refresh": "Refresh",
+    "notice": "Sensitive configs (API Keys, Tokens) must be set in the .env file — they do not appear here.",
+    "loading": "Loading config…",
+    "nItems": "{n} items",
+    "empty": "No config items",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "modal": {
+      "title": "Edit Config",
+      "fieldValue": "Value (JSON format)",
+      "placeholder": "Enter a JSON-format value (strings need quotes)",
+      "success": "Config updated",
+      "errorJson": "Invalid JSON — please check",
+      "errorLoad": "Failed to load config",
+      "errorUpdate": "Update failed"
+    },
+    "categories": {
+      "security": "Security",
+      "llm": "AI Model",
+      "game": "Game Rules",
+      "ui": "UI",
+      "platform": "Platform"
+    },
+    "categoryDescs": {
+      "security": "Auth, permissions & security policy",
+      "llm": "LLM provider selection & parameters",
+      "game": "Lateral thinking & board game flow config",
+      "ui": "Display & interaction preferences",
+      "platform": "OneBot & external platform connections"
+    }
+  },
+  "llmConfig": {
+    "title": "AI Config",
+    "sub": "Provider management & task routing",
+    "providers": {
+      "title": "Providers",
+      "sub": "Registered LLM providers",
+      "envNote": "API Key env var",
+      "models": "Models",
+      "setDefault": "Set as Default",
+      "isDefault": "Default",
+      "defaultLabel": "Default Provider",
+      "add": "Add Provider",
+      "addTitle": "Add Provider",
+      "editTitle": "Edit Provider",
+      "empty": "No providers yet — click \"Add Provider\" to get started",
+      "restartNotice": "Adding or removing providers requires a server restart to take effect",
+      "deleteTitle": "Delete Provider",
+      "deleteConfirm": "Delete provider \"{id}\"? This cannot be undone.",
+      "saveSuccess": "Provider saved",
+      "deleteSuccess": "Provider \"{id}\" deleted",
+      "saveError": "Save failed: {msg}",
+      "deleteError": "Delete failed: {msg}",
+      "apiKeySet": "Configured",
+      "apiKeyNotSet": "Not set",
+      "apiKeyMasked": "{masked}",
+      "setKey": "Set API Key",
+      "keyModalTitle": "Set API Key — {name}",
+      "keyField": "API Key",
+      "keyPlaceholder": "Paste your API key...",
+      "keySetSuccess": "{name} API Key saved",
+      "keyDeleteSuccess": "{name} API Key deleted",
+      "keyError": "Failed: {msg}",
+      "form": {
+        "fieldId": "Provider ID",
+        "fieldName": "Display Name",
+        "fieldBaseUrl": "API Base URL",
+        "fieldModels": "Available Models (comma-separated)",
+        "idPlaceholder": "e.g. deepseek",
+        "namePlaceholder": "e.g. DeepSeek",
+        "baseUrlPlaceholder": "e.g. https://api.deepseek.com/v1",
+        "modelsPlaceholder": "e.g. deepseek-v4-flash,deepseek-v4-pro"
+      }
+    },
+    "restart": {
+      "btn": "Restart Server",
+      "modalTitle": "Restart Server",
+      "modalContent": "The bot will be briefly offline (~10 seconds). Provider config changes require a restart to take effect. Continue?",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "e.g. Updated provider config",
+      "confirm": "Restart",
+      "triggering": "Triggering restart...",
+      "waiting": "Server restarting, please wait...",
+      "reconnecting": "Reconnecting ({s}s)...",
+      "success": "Server is back online!",
+      "failed": "Restart timed out — check the server process"
+    },
+    "routing": {
+      "title": "Task Routing",
+      "sub": "Model assignment for each task type",
+      "task": "Task",
+      "model": "Model ID",
+      "description": "Description",
+      "edit": "Change",
+      "save": "Save",
+      "cancel": "Cancel",
+      "placeholder": "e.g. deepseek-v4-flash",
+      "success": "Routing updated",
+      "error": "Update failed: {msg}",
+      "saveAll": "Save All",
+      "saveAllSuccess": "All routes saved"
+    },
+    "tasks": {
+      "soup_judge": "Soup Judge",
+      "soup_restore": "Restore Check",
+      "puzzle_extract_metadata": "Metadata Extract",
+      "intent_parse": "Intent Parse",
+      "dice_nl_parse": "Dice Parse",
+      "game_arbitrate": "Board Game Arbitrate",
+      "trpg_narrate": "TRPG Narrate",
+      "trpg_npc": "NPC Dialogue",
+      "summary": "Game Summary"
+    },
+    "taskDescs": {
+      "soup_judge": "Judge player questions: yes / no / irrelevant / partial",
+      "soup_restore": "Verify how well the player reconstructed the truth",
+      "puzzle_extract_metadata": "Extract key points & sensitive words from puzzle text",
+      "intent_parse": "Map natural language to allowed command whitelist",
+      "dice_nl_parse": "Convert natural language to dice expressions",
+      "game_arbitrate": "Arbitrate board game rules & announce results",
+      "trpg_narrate": "Narrate TRPG scenes and story progression",
+      "trpg_npc": "Role-play TRPG NPC conversations",
+      "summary": "Post-session recap and summary"
+    },
+    "messages": {
+      "loadError": "Failed to load config: {msg}",
+      "defaultSuccess": "Set {id} as default provider",
+      "defaultError": "Failed: {msg}"
+    }
+  },
+  "systemLogs": {
+    "title": "System Logs",
+    "sub": "Live WebSocket stream · up to 2000 entries",
+    "filter": {
+      "level": "Log Level",
+      "module": "Module",
+      "keyword": "Keyword search"
+    },
+    "ws": {
+      "live": "Live",
+      "disconnected": "Disconnected"
+    },
+    "autoScroll": "Auto-scroll",
+    "paused": "Paused",
+    "clear": "Clear",
+    "exportJson": "JSON",
+    "empty": "No logs yet"
+  },
+  "gameLogs": {
+    "title": "Game Logs",
+    "sub": "{n} complete records",
+    "tiles": {
+      "words": "Total Log Words",
+      "duration": "Total Play Time",
+      "monthNew": "Added This Month",
+      "avgLength": "Avg Session Length"
+    },
+    "tilePhase": "Available after Phase 2",
+    "table": {
+      "session": "Session",
+      "system": "System",
+      "date": "Date",
+      "kp": "Host",
+      "players": "Players",
+      "duration": "Duration",
+      "words": "Words",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "filterTime": "Time Range",
+    "exportAll": "Export All"
+  },
+  "common": {
+    "soon": "soon",
+    "loading": "Loading…",
+    "noData": "No data",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "refresh": "Refresh",
+    "back": "Back"
+  }
+}

@@ -1,82 +1,213 @@
 <template>
-  <n-layout has-sider style="height: 100vh;">
-    <!-- 侧边栏 -->
-    <n-layout-sider
-      bordered
-      collapse-mode="width"
-      :collapsed-width="64"
-      :width="220"
-      v-model:collapsed="collapsed"
-    >
-      <div class="logo">
-        <span v-if="!collapsed">🎲 Dice&Soup</span>
-        <span v-else>🎲</span>
+  <div class="admin-shell">
+    <!-- ── Sidebar ─────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <!-- Brand -->
+      <div class="brand">
+        <div class="brand-mark">
+          <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+            <path d="M16 3 4 9v14l12 6 12-6V9z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+            <path d="M4 9l12 6 12-6M16 15v14" stroke="currentColor" stroke-width="1.4"/>
+            <circle cx="10" cy="19" r="1.1" fill="currentColor"/>
+            <circle cx="22" cy="20" r="1.1" fill="currentColor"/>
+            <circle cx="16" cy="22" r="1.1" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="col">
+          <div class="brand-name">Dice<span class="amp">&amp;</span>Soup</div>
+          <div class="brand-sub">GAME · MASTER · AI</div>
+        </div>
       </div>
-      <n-menu
-        :collapsed="collapsed"
-        :collapsed-width="64"
-        :options="menuOptions"
-        :value="activeKey"
-        @update:value="handleMenuClick"
-      />
-    </n-layout-sider>
 
-    <n-layout>
-      <!-- 顶栏 -->
-      <n-layout-header bordered style="height: 48px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between;">
-        <span style="font-size: 14px; color: #888;">{{ currentRouteTitle }}</span>
-        <n-space align="center">
-          <!-- Bot 连接状态指示器 -->
-          <n-tooltip>
-            <template #trigger>
-              <span
-                class="bot-status"
-                :class="botConnected === null ? 'checking' : botConnected ? 'connected' : 'disconnected'"
-                @click="checkBotStatus"
-                style="cursor: pointer;"
-              >
-                <span v-if="botConnected === null">⏳ 检测中...</span>
-                <span v-else-if="botConnected">🟢 Bot 在线</span>
-                <span v-else>🔴 Bot 离线</span>
-              </span>
-            </template>
-            <span v-if="botConnected === null">正在检测 Bot 状态...</span>
-            <span v-else-if="botConnected">NapCat 已连接，Bot 正常工作。点击刷新。</span>
-            <span v-else>NapCat 未连接，Bot 不可用。请检查 NapCat 进程后点击刷新。</span>
-          </n-tooltip>
-          <n-text depth="3" style="font-size: 13px;">{{ auth.admin?.displayName }}</n-text>
-          <n-button text @click="handleLogout">退出登录</n-button>
-        </n-space>
-      </n-layout-header>
+      <!-- Nav -->
+      <template v-for="group in NAV" :key="group.group">
+        <div class="nav-group">{{ t(group.group) }}</div>
+        <div
+          v-for="item in group.items"
+          :key="item.id"
+          class="nav-item"
+          :class="{ active: activeKey === item.id, disabled: item.disabled }"
+          @click="!item.disabled && navigate(item.route)"
+        >
+          <span class="ico">
+            <DsIcon :name="item.icon" :size="16" />
+          </span>
+          <span>{{ t(item.label) }}</span>
+          <span v-if="item.soon" class="badge-mini">{{ t('common.soon') }}</span>
+        </div>
+      </template>
 
-      <!-- 内容区 -->
-      <n-layout-content style="padding: 20px; overflow: auto; height: calc(100vh - 48px);">
+      <!-- Footer -->
+      <div class="sidebar-foot">
+        <div class="avatar sm role-bot">{{ adminInitial }}</div>
+        <div class="who">
+          <div class="name">{{ auth.admin?.displayName || 'admin' }}</div>
+          <div class="sub">{{ t('sidebar.role') }}</div>
+        </div>
+        <button class="icon-btn" :title="t('sidebar.logout')" @click="handleLogout" style="margin-left: auto;">
+          <DsIcon name="key" :size="15" />
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── Main area ──────────────────────────────────────── -->
+    <div class="main">
+      <!-- Topbar -->
+      <div class="topbar">
+        <div class="crumbs">
+          <template v-for="(crumb, i) in crumbs" :key="i">
+            <span :class="{ cur: i === crumbs.length - 1 }">{{ crumb }}</span>
+            <span v-if="i < crumbs.length - 1" class="sep">
+              <DsIcon name="chevron" :size="12" />
+            </span>
+          </template>
+        </div>
+        <div class="spacer" />
+
+        <!-- Bot status -->
+        <div
+          class="status-dot"
+          :class="botStatus"
+          :title="botTooltip"
+          @click="checkBotStatus"
+        >
+          <span class="dot" :class="{ 'dot-pulse': botConnected === true }" />
+          <span>{{ botLabel }}</span>
+        </div>
+
+        <!-- Language switcher -->
+        <div class="lang-switcher">
+          <button
+            v-for="loc in LOCALES"
+            :key="loc.value"
+            class="lang-btn"
+            :class="{ active: currentLocale === loc.value }"
+            @click="switchLocale(loc.value)"
+          >{{ loc.native }}</button>
+        </div>
+
+        <!-- Theme toggle -->
+        <button
+          class="icon-btn"
+          :title="isDark ? t('topbar.themeLight') : t('topbar.themeDark')"
+          @click="toggleTheme"
+        >
+          <DsIcon :name="isDark ? 'sun' : 'moon'" :size="16" />
+        </button>
+      </div>
+
+      <!-- Page content -->
+      <div class="content-area">
         <router-view />
-      </n-layout-content>
-    </n-layout>
-  </n-layout>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import {
-  NLayout, NLayoutSider, NLayoutHeader, NLayoutContent,
-  NMenu, NButton, NSpace, NText, NTooltip,
-  useMessage,
-  type MenuOption,
-} from 'naive-ui'
+import { useMessage } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import DsIcon from '@/components/DsIcon.vue'
+import { useTheme } from '@/composables/useTheme'
+import { LOCALES, setLocale, type Locale } from '@/i18n'
 
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
 const auth = useAuthStore()
-const collapsed = ref(false)
+const { isDark, toggle: toggleTheme } = useTheme()
+const { t, locale } = useI18n()
 
-// ── Bot 状态 ──────────────────────────────────────────────────────────────────
+const currentLocale = computed(() => locale.value as Locale)
+function switchLocale(loc: Locale) { setLocale(loc) }
+
+// ── Nav structure ─────────────────────────────────────────────
+const NAV = [
+  { group: 'nav.groups.overview', items: [
+    { id: 'dashboard',   route: 'Dashboard',  label: 'nav.items.dashboard',  icon: 'dashboard' },
+  ]},
+  { group: 'nav.groups.operations', items: [
+    { id: 'logs',        route: 'GameLogs',   label: 'nav.items.gameLogs',   icon: 'scroll' },
+    { id: 'sessions',    route: 'Sessions',   label: 'nav.items.sessions',   icon: 'sessions', soon: true, disabled: true },
+    { id: 'users',       route: 'Users',      label: 'nav.items.users',      icon: 'users',    soon: true, disabled: true },
+  ]},
+  { group: 'nav.groups.content', items: [
+    { id: 'puzzles',     route: 'Puzzles',    label: 'nav.items.puzzles',    icon: 'soup' },
+    { id: 'content',     route: 'Content',    label: 'nav.items.content',    icon: 'book',     soon: true, disabled: true },
+  ]},
+  { group: 'nav.groups.modules', items: [
+    { id: 'dice',        route: 'Dice',       label: 'nav.items.dice',       icon: 'dice',     soon: true, disabled: true },
+    { id: 'boardgame',   route: 'BoardGame',  label: 'nav.items.boardGame',  icon: 'card',     soon: true, disabled: true },
+    { id: 'trpg',        route: 'Trpg',       label: 'nav.items.trpg',       icon: 'book',     soon: true, disabled: true },
+  ]},
+  { group: 'nav.groups.system', items: [
+    { id: 'llm-config',  route: 'LLMConfig',  label: 'nav.items.llmConfig',  icon: 'lightning' },
+    { id: 'prompts',     route: 'Prompts',    label: 'nav.items.prompts',    icon: 'prompt' },
+    { id: 'config',      route: 'Config',     label: 'nav.items.config',     icon: 'settings' },
+    { id: 'system-logs', route: 'SystemLogs', label: 'nav.items.systemLogs', icon: 'terminal' },
+    { id: 'audit',       route: 'Audit',      label: 'nav.items.audit',      icon: 'audit',    soon: true, disabled: true },
+  ]},
+]
+
+const CRUMB_MAP = computed<Record<string, string[]>>(() => ({
+  // 总览
+  Dashboard:  [t('nav.groups.overview'),    t('nav.items.dashboard')],
+  // 运营
+  GameLogs:   [t('nav.groups.operations'),  t('nav.items.gameLogs')],
+  Sessions:   [t('nav.groups.operations'),  t('nav.items.sessions')],
+  Users:      [t('nav.groups.operations'),  t('nav.items.users')],
+  // 内容库
+  Puzzles:    [t('nav.groups.content'),     t('nav.items.puzzles')],
+  Content:    [t('nav.groups.content'),     t('nav.items.content')],
+  // 游戏模块
+  Dice:       [t('nav.groups.modules'),     t('nav.items.dice')],
+  BoardGame:  [t('nav.groups.modules'),     t('nav.items.boardGame')],
+  Trpg:       [t('nav.groups.modules'),     t('nav.items.trpg')],
+  // 系统
+  LLMConfig:  [t('nav.groups.system'),      t('nav.items.llmConfig')],
+  Prompts:    [t('nav.groups.system'),      t('nav.items.prompts')],
+  Config:     [t('nav.groups.system'),      t('nav.items.config')],
+  SystemLogs: [t('nav.groups.system'),      t('nav.items.systemLogs')],
+  Audit:      [t('nav.groups.system'),      t('nav.items.audit')],
+}))
+
+const activeKey = computed(() => {
+  const name = route.name as string
+  if (name === 'SystemLogs') return 'system-logs'
+  if (name === 'LLMConfig')  return 'llm-config'
+  if (name === 'BoardGame')  return 'boardgame'
+  return name?.toLowerCase() ?? 'dashboard'
+})
+
+const crumbs = computed(() => CRUMB_MAP.value[route.name as string] ?? ['Dice&Soup'])
+
+const adminInitial = computed(() =>
+  (auth.admin?.displayName || 'A')[0].toUpperCase()
+)
+
+function navigate(routeName: string) {
+  router.push({ name: routeName })
+}
+
+// ── Bot status ────────────────────────────────────────────────
 const botConnected = ref<boolean | null>(null)
 let statusTimer: ReturnType<typeof setInterval> | null = null
+
+const botStatus = computed(() => {
+  if (botConnected.value === null) return 'checking'
+  return botConnected.value ? 'connected' : 'disconnected'
+})
+const botLabel = computed(() => {
+  if (botConnected.value === null) return t('topbar.botChecking')
+  return botConnected.value ? t('topbar.botOnline') : t('topbar.botOffline')
+})
+const botTooltip = computed(() => {
+  if (botConnected.value === null) return t('topbar.botTooltipChecking')
+  return botConnected.value ? t('topbar.botTooltipOnline') : t('topbar.botTooltipOffline')
+})
 
 async function checkBotStatus() {
   try {
@@ -90,83 +221,45 @@ async function checkBotStatus() {
 
 onMounted(() => {
   checkBotStatus()
-  // 每 15 秒轮询一次
   statusTimer = setInterval(checkBotStatus, 15_000)
 })
-
 onUnmounted(() => {
   if (statusTimer !== null) clearInterval(statusTimer)
 })
 
-// ── 菜单 ──────────────────────────────────────────────────────────────────────
-const menuOptions: MenuOption[] = [
-  { label: '仪表盘', key: 'dashboard', icon: () => '📊' },
-  { label: 'Log Viewer', key: 'logs', icon: () => '📋' },
-  { label: '配置中心', key: 'config', icon: () => '⚙️' },
-  { type: 'divider' },
-  { label: '🐢 题库管理', key: 'puzzles', icon: () => '' },
-  { type: 'divider' },
-  { label: '用户管理', key: 'users', icon: () => '👥' },
-  { label: '内容管理', key: 'content', icon: () => '🗂️' },
-  { label: '会话监控', key: 'sessions', icon: () => '🎮' },
-  { label: '审计日志', key: 'audit', icon: () => '🔍' },
-]
-
-const activeKey = computed(() => route.name as string || 'dashboard')
-
-const routeTitleMap: Record<string, string> = {
-  Dashboard: '仪表盘',
-  LogViewer: 'Log Viewer',
-  Config: '配置中心',
-  Puzzles: '🐢 题库管理',
-  Users: '用户管理',
-  Content: '内容管理',
-  Sessions: '会话监控',
-  Audit: '审计日志',
-}
-const currentRouteTitle = computed(() => routeTitleMap[route.name as string] ?? '')
-
-function handleMenuClick(key: string) {
-  router.push({ name: key.charAt(0).toUpperCase() + key.slice(1) })
-}
-
+// ── Logout ────────────────────────────────────────────────────
 async function handleLogout() {
   await auth.logout()
   router.push('/login')
-  message.success('已退出登录')
+  message.success(t('sidebar.logoutSuccess'))
 }
 </script>
 
 <style scoped>
-.logo {
-  height: 48px;
+.lang-switcher {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  white-space: nowrap;
-  overflow: hidden;
+  gap: 2px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 2px;
 }
-
-.bot-status {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  user-select: none;
-  transition: opacity 0.2s;
+.lang-btn {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--fg-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  line-height: 1.4;
 }
-.bot-status.connected {
-  background: rgba(82, 196, 26, 0.15);
-  color: #52c41a;
-}
-.bot-status.disconnected {
-  background: rgba(255, 77, 79, 0.15);
-  color: #ff4d4f;
-}
-.bot-status.checking {
-  background: rgba(250, 173, 20, 0.15);
-  color: #faad14;
+.lang-btn:hover { color: var(--fg-primary); }
+.lang-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
 }
 </style>

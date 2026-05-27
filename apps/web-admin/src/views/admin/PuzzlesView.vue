@@ -1,39 +1,113 @@
 <template>
-  <div>
-    <!-- 头部操作栏 -->
-    <n-space justify="space-between" align="center" style="margin-bottom: 16px;">
-      <n-space>
+  <div class="page">
+    <!-- Header -->
+    <div class="page-head">
+      <div>
+        <h1 class="page-title"><span class="accent-line" />{{ t('puzzles.title') }}</h1>
+        <p class="page-sub">{{ t('puzzles.sub', { n: total }) }}</p>
+      </div>
+      <div class="page-head-actions">
         <n-select
           v-model:value="filterState"
           :options="stateOptions"
-          placeholder="状态筛选"
+          :placeholder="t('puzzles.filter.state')"
           clearable
-          style="width: 120px;"
+          size="small"
+          style="width: 110px;"
           @update:value="loadPuzzles"
         />
         <n-select
           v-model:value="filterDifficulty"
           :options="difficultyOptions"
-          placeholder="难度筛选"
+          :placeholder="t('puzzles.filter.difficulty')"
           clearable
-          style="width: 120px;"
+          size="small"
+          style="width: 100px;"
           @update:value="loadPuzzles"
         />
-        <n-button @click="loadPuzzles">刷新</n-button>
-      </n-space>
-      <n-button type="primary" @click="openCreateModal">
-        + 新建题目
-      </n-button>
-    </n-space>
+        <button class="btn" @click="loadPuzzles">
+          <DsIcon name="refresh" :size="13" /> {{ t('puzzles.refresh') }}
+        </button>
+        <button class="btn primary" @click="openCreateModal">
+          <DsIcon name="plus" :size="13" /> {{ t('puzzles.newPuzzle') }}
+        </button>
+      </div>
+    </div>
 
-    <!-- 题目列表 -->
-    <n-data-table
-      :columns="columns"
-      :data="puzzles"
-      :loading="loading"
-      :pagination="{ page, pageSize, itemCount: total, onUpdatePage: handlePageChange }"
-      striped
-    />
+    <!-- 卡片网格 -->
+    <div v-if="loading" class="grid c3">
+      <div v-for="i in 6" :key="i" class="puzzle-card" style="min-height:180px; opacity:0.4;" />
+    </div>
+
+    <div v-else-if="puzzles.length === 0" class="ds-card" style="text-align:center; padding:48px; color:var(--fg-muted);">
+      <DsIcon name="soup" :size="32" style="opacity:0.3; display:block; margin:0 auto 12px;" />
+      <div style="font-size:14px;">{{ t('puzzles.empty') }}</div>
+    </div>
+
+    <div v-else class="grid c3">
+      <div v-for="puzzle in puzzles" :key="puzzle.id" class="puzzle-card">
+        <!-- Card head: pips + state -->
+        <div class="card-head">
+          <div class="pips">
+            <span
+              v-for="n in 5"
+              :key="n"
+              class="pip"
+              :class="{ on: n <= puzzle.difficulty }"
+            />
+          </div>
+          <span class="state-badge" :class="puzzle.state">{{ t(`puzzles.states.${puzzle.state}`) || puzzle.state }}</span>
+        </div>
+
+        <!-- Title -->
+        <div class="card-title" @click="openDetail(puzzle)">{{ puzzle.title }}</div>
+
+        <!-- Tags -->
+        <div v-if="puzzle.tags.length" class="card-tags">
+          <span v-for="tag in puzzle.tags.slice(0, 4)" :key="tag" class="card-tag">#{{ tag }}</span>
+        </div>
+
+        <hr class="hr-fancy" />
+
+        <!-- Stats -->
+        <div class="card-stats">
+          <div>{{ t('puzzles.card.plays') }} <span class="stat-val">{{ puzzle.playCount }}</span></div>
+          <div>{{ t('puzzles.card.keyPoints') }} <span class="stat-val">{{ puzzle.keyPoints.length > 0 ? puzzle.keyPoints.length : t('puzzles.card.keyPointsNone') }}</span></div>
+        </div>
+        <div class="bar thin">
+          <span :style="{ width: puzzle.playCount > 0 ? Math.min(100, puzzle.playCount * 10) + '%' : '0%' }" />
+        </div>
+
+        <!-- Actions -->
+        <div class="card-actions">
+          <button class="btn" style="padding:4px 8px;" :title="t('puzzles.detail.title')" @click="openDetail(puzzle)">
+            <DsIcon name="eye" :size="13" />
+          </button>
+          <button class="btn" style="padding:4px 8px;" :title="t('common.edit')" @click="openEdit(puzzle)">
+            <DsIcon name="card" :size="13" />
+          </button>
+          <button
+            v-if="puzzle.state === 'draft'"
+            class="btn primary" style="padding:4px 10px; font-size:12px; margin-left:auto;"
+            @click="changeState(puzzle.id, 'active')"
+          >{{ t('puzzles.card.publish') }}</button>
+          <button
+            v-else-if="puzzle.state === 'active'"
+            class="btn" style="padding:4px 10px; font-size:12px; margin-left:auto;"
+            @click="changeState(puzzle.id, 'archived')"
+          >{{ t('puzzles.card.archive') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="total > pageSize" style="display:flex; justify-content:center; margin-top:8px;">
+      <n-pagination
+        v-model:page="page"
+        :page-count="Math.ceil(total / pageSize)"
+        @update:page="handlePageChange"
+      />
+    </div>
 
     <!-- 新建/编辑弹窗 -->
     <n-modal
@@ -203,17 +277,23 @@
   </div>
 </template>
 
+
 <script setup lang="ts">
-import { ref, h, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
-  NButton, NSpace, NDataTable, NModal, NForm, NFormItem,
+  NButton, NModal, NForm, NFormItem,
   NInput, NInputNumber, NSelect, NRate, NDynamicTags, NDynamicInput,
   NDrawer, NDrawerContent, NDescriptions, NDescriptionsItem,
-  NTag, NText, NList, NListItem, NCheckbox,
+  NPagination,
+  NTag, NText, NList, NListItem, NCheckbox, NSpace,
   useMessage,
-  type DataTableColumns,
 } from 'naive-ui'
+import { useI18n } from 'vue-i18n'
+import DsIcon from '@/components/DsIcon.vue'
 import { apiGet, apiPost, apiPut } from '@/api/client'
+
+const { t } = useI18n()
+
 
 interface KeyPoint {
   id: string
@@ -296,13 +376,13 @@ const extracting = ref(false)
 
 // ── 选项 ──────────────────────────────────────────────────────────────────────
 
-const stateOptions = [
-  { label: '草稿', value: 'draft' },
-  { label: '激活', value: 'active' },
-  { label: '归档', value: 'archived' },
-  { label: '拒绝', value: 'rejected' },
-  { label: '提取失败', value: 'extraction_failed' },
-]
+const stateOptions = computed(() => [
+  { label: t('puzzles.states.draft'),           value: 'draft' },
+  { label: t('puzzles.states.active'),          value: 'active' },
+  { label: t('puzzles.states.archived'),        value: 'archived' },
+  { label: t('puzzles.states.rejected'),        value: 'rejected' },
+  { label: t('puzzles.states.extractionFailed'), value: 'extraction_failed' },
+])
 
 const difficultyOptions = [1, 2, 3, 4, 5].map((n) => ({
   label: '★'.repeat(n) + '☆'.repeat(5 - n),
@@ -316,71 +396,10 @@ const sourceOptions = [
   { label: '公开题库', value: 'public_unverified' },
 ]
 
-// ── 表格列 ────────────────────────────────────────────────────────────────────
-
-const columns: DataTableColumns<Puzzle> = [
-  {
-    title: '标题',
-    key: 'title',
-    render: (row) => h(
-      NButton,
-      { text: true, onClick: () => openDetail(row) },
-      { default: () => row.title },
-    ),
-  },
-  {
-    title: '难度',
-    key: 'difficulty',
-    width: 100,
-    render: (row) => '★'.repeat(row.difficulty) + '☆'.repeat(5 - row.difficulty),
-  },
-  {
-    title: '标签',
-    key: 'tags',
-    render: (row) =>
-      h(NSpace, {}, {
-        default: () => row.tags.slice(0, 3).map((t) => h(NTag, { size: 'small' }, { default: () => t })),
-      }),
-  },
-  {
-    title: '状态',
-    key: 'state',
-    width: 90,
-    render: (row) => h(NTag, { type: stateTagType(row.state), size: 'small' }, { default: () => row.state }),
-  },
-  {
-    title: '关键线索',
-    key: 'keyPoints',
-    width: 80,
-    render: (row) => row.keyPoints.length > 0 ? `${row.keyPoints.length}个` : h(NText, { depth: 3 }, { default: () => '未提取' }),
-  },
-  {
-    title: '游玩次数',
-    key: 'playCount',
-    width: 80,
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 160,
-    render: (row) =>
-      h(NSpace, {}, {
-        default: () => [
-          h(NButton, { size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
-          row.state === 'draft'
-            ? h(NButton, { size: 'small', type: 'primary', onClick: () => changeState(row.id, 'active') }, { default: () => '上架' })
-            : row.state === 'active'
-              ? h(NButton, { size: 'small', onClick: () => changeState(row.id, 'archived') }, { default: () => '归档' })
-              : null,
-        ].filter(Boolean),
-      }),
-  },
-]
-
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 
 function stateTagType(state: string): 'default' | 'info' | 'success' | 'warning' | 'error' {
-  return { draft: 'info', active: 'success', archived: 'default', rejected: 'error', extraction_failed: 'warning' }[state] as any ?? 'default'
+  return ({ draft: 'info', active: 'success', archived: 'default', rejected: 'error', extraction_failed: 'warning' }[state] ?? 'default') as any
 }
 
 // ── 数据加载 ──────────────────────────────────────────────────────────────────

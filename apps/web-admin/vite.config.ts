@@ -12,15 +12,18 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // 开发模式下代理 API 请求到后端
-      '/api': {
+      '/health': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      // Log Viewer WebSocket
+      // WebSocket 必须在 /api 前声明，否则被通用规则截获
       '/api/admin/logs/stream': {
         target: 'ws://localhost:3000',
         ws: true,
+      },
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
       },
     },
   },
