@@ -190,7 +190,7 @@ export class SoupHandler implements CommandHandler {
           .slice(-20)
           .map((q) => {
             const v = VERDICT_DISPLAY[q.verdict] ?? q.verdict;
-            return `Q${q.questionIndex + 1}: [${q.qq}] ${v}`;
+            return `Q${q.questionIndex + 1}: ${q.question}  →  ${v}`;
           })
           .join('\n');
 
