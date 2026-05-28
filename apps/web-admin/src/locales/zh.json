@@ -3,7 +3,7 @@
     "groups": {
       "overview": "总览",
       "operations": "运营",
-      "content": "内容库",
+      "content": "内容管理",
       "modules": "游戏模块",
       "system": "系统"
     },
@@ -15,6 +15,8 @@
       "puzzles": "海龟汤题库",
       "content": "内容管理",
       "dice": "骰子",
+      "undercoverWords": "卧底词库",
+      "undercoverRecords": "卧底记录",
       "boardGame": "桌游仲裁",
       "trpg": "跑团",
       "llmConfig": "AI 配置",
@@ -317,6 +319,10 @@
   "gameLogs": {
     "title": "游戏记录",
     "sub": "{n} 场对局",
+    "tabs": {
+      "soup": "海龟汤",
+      "undercover": "谁是卧底"
+    },
     "tiles": {
       "total": "累计对局",
       "totalSub": "海龟汤已完成场次",
@@ -329,6 +335,101 @@
     "empty": "暂无对局记录",
     "filterTime": "时间范围",
     "exportAll": "全部导出"
+  },
+  "undercover": {
+    "words": {
+      "title": "卧底词库",
+      "sub": "共 {n} 个词对",
+      "newPair": "新建词对",
+      "refresh": "刷新",
+      "stats": {
+        "total": "词对总数",
+        "active": "激活中",
+        "categories": "分类数",
+        "played": "游玩场次"
+      },
+      "filter": {
+        "state": "状态",
+        "category": "分类",
+        "difficulty": "难度",
+        "all": "全部"
+      },
+      "states": {
+        "active": "激活",
+        "inactive": "停用"
+      },
+      "difficulties": {
+        "easy": "简单",
+        "medium": "中等",
+        "hard": "困难"
+      },
+      "card": {
+        "normal": "平民词",
+        "undercover": "卧底词",
+        "activate": "启用",
+        "deactivate": "停用"
+      },
+      "form": {
+        "createTitle": "新建词对",
+        "editTitle": "编辑词对",
+        "normalWord": "平民词",
+        "undercoverWord": "卧底词",
+        "category": "分类",
+        "difficulty": "难度",
+        "normalPlaceholder": "平民看到的词语",
+        "undercoverPlaceholder": "卧底看到的词语",
+        "categoryPlaceholder": "如：食物、动物、地点",
+        "cancel": "取消",
+        "save": "保存",
+        "create": "创建"
+      },
+      "empty": "暂无词对，点击「新建词对」开始录入",
+      "messages": {
+        "createSuccess": "词对创建成功",
+        "saveSuccess": "保存成功",
+        "saveError": "操作失败：{msg}",
+        "stateSuccess": "状态已更新为 {state}",
+        "stateError": "切换失败：{msg}",
+        "loadError": "加载失败：{msg}"
+      }
+    },
+    "records": {
+      "title": "卧底记录",
+      "sub": "{n} 条游玩记录",
+      "refresh": "刷新",
+      "stats": {
+        "total": "累计场次",
+        "totalSub": "总游玩场次",
+        "civWin": "平民胜场",
+        "ucWin": "卧底胜场",
+        "blankWin": "白板胜场"
+      },
+      "filter": {
+        "role": "身份筛选",
+        "result": "结果筛选"
+      },
+      "roles": {
+        "civilian": "平民",
+        "undercover": "卧底",
+        "blank": "白板"
+      },
+      "results": {
+        "win": "胜利",
+        "lose": "失败"
+      },
+      "cols": {
+        "player": "玩家",
+        "role": "身份",
+        "result": "结果",
+        "words": "词对",
+        "rounds": "存活轮数",
+        "time": "时间"
+      },
+      "empty": "暂无游玩记录",
+      "messages": {
+        "loadError": "加载失败：{msg}"
+      }
+    }
   },
   "common": {
     "soon": "soon",

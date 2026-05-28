@@ -20,11 +20,13 @@ import { adminPuzzlesRoutes } from './routes/admin/puzzles';
 import { adminSecretsRoutes } from './routes/admin/secrets';
 import { adminServerControlRoutes } from './routes/admin/server-control';
 import { adminGameLogsRoutes } from './routes/admin/game-logs';
+import { adminUndercoverRoutes } from './routes/admin/undercover';
 import { getDatabase } from './db/client';
 import type { ConfigService } from './config/config-service';
 import type { AuditService } from './services/audit-service';
 import type { OneBotAdapter } from './adapters/onebot-adapter';
 import type { SoupService } from './services/soup-service';
+import type { UndercoverService } from './services/undercover-service';
 import type { LLMRouter } from '@dice-soup/llm-router';
 
 const log = createLogger({ module: 'app' });
@@ -34,6 +36,7 @@ export interface AppOptions {
   auditService: AuditService;
   oneBotAdapter: OneBotAdapter;
   soupService: SoupService;
+  undercoverService: UndercoverService;
   llmRouter: LLMRouter;
   jwtSecret: string;
   /** HTTP 监听端口，默认 3000 */
@@ -44,7 +47,7 @@ export interface AppOptions {
 
 /** 构建并返回 Fastify 实例（未 listen） */
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
-  const { configService, auditService, oneBotAdapter, soupService, llmRouter, jwtSecret, isDev = false } = options;
+  const { configService, auditService, oneBotAdapter, soupService, undercoverService, llmRouter, jwtSecret, isDev = false } = options;
 
   const fastify = Fastify({
     // Fastify 内置 Pino；此处指向我们自己的 logger 不合适（两套输出）
@@ -150,6 +153,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
     // 游戏对局记录
     await adminGameLogsRoutes(app, { db: getDatabase() });
+
+    // 谁是卧底管理
+    await adminUndercoverRoutes(app, { undercoverService });
   });
 
   return fastify;

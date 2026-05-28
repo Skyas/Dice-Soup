@@ -21,6 +21,8 @@
     "@dice-soup/security": "workspace:*",
     "@dice-soup/shared-types": "workspace:*",
     "@dice-soup/llm-router": "workspace:*",
+    "@dice-soup/game-common": "workspace:*",
+    "@dice-soup/game-undercover": "workspace:*",
     "@fastify/cors": "^11.2.0",
     "@fastify/jwt": "^10.1.0",
     "@fastify/static": "^9.1.3",

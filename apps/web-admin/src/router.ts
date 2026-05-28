@@ -31,49 +31,22 @@ const router = createRouter({
           component: () => import('@/views/admin/GameLogsView.vue'),
         },
         {
-          path: 'sessions',
-          name: 'Sessions',
-          component: () => import('@/views/admin/PlaceholderView.vue'),
-          props: { title: '会话监控', phase: 2 },
-        },
-        {
           path: 'users',
           name: 'Users',
           component: () => import('@/views/admin/PlaceholderView.vue'),
           props: { title: '玩家管理', phase: 2 },
         },
 
-        // ── 内容库 ─────────────────────────────────────────────────
+        // ── 内容管理 ────────────────────────────────────────────────
         {
           path: 'puzzles',
           name: 'Puzzles',
           component: () => import('@/views/admin/PuzzlesView.vue'),
         },
         {
-          path: 'content',
-          name: 'Content',
-          component: () => import('@/views/admin/PlaceholderView.vue'),
-          props: { title: '内容管理', phase: 2 },
-        },
-
-        // ── 游戏模块 ───────────────────────────────────────────────
-        {
-          path: 'dice',
-          name: 'Dice',
-          component: () => import('@/views/admin/PlaceholderView.vue'),
-          props: { title: '骰子', phase: 2 },
-        },
-        {
-          path: 'board-game',
-          name: 'BoardGame',
-          component: () => import('@/views/admin/PlaceholderView.vue'),
-          props: { title: '桌游仲裁', phase: 2 },
-        },
-        {
-          path: 'trpg',
-          name: 'Trpg',
-          component: () => import('@/views/admin/PlaceholderView.vue'),
-          props: { title: '跑团', phase: 2 },
+          path: 'undercover-words',
+          name: 'UndercoverWords',
+          component: () => import('@/views/admin/UndercoverWordsView.vue'),
         },
 
         // ── 系统 ───────────────────────────────────────────────────
@@ -96,12 +69,6 @@ const router = createRouter({
           path: 'system-logs',
           name: 'SystemLogs',
           component: () => import('@/views/admin/LogViewer.vue'),
-        },
-        {
-          path: 'audit',
-          name: 'Audit',
-          component: () => import('@/views/admin/PlaceholderView.vue'),
-          props: { title: '审计日志', phase: 2 },
         },
       ],
     },

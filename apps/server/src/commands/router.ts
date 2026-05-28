@@ -31,6 +31,8 @@ import { PlaceholderHandler } from './handlers/placeholder';
 import { SoupHandler } from './handlers/soup';
 import { StopHandler } from './handlers/stop';
 import { RestartHandler } from './handlers/restart';
+import { UndercoverHandler } from './handlers/undercover';
+import { BoardGameCommonHandler } from './handlers/board-game-common';
 import type { SessionManager } from '../services/session-manager';
 import type { SoupService } from '../services/soup-service';
 import type { LLMRouter } from '@dice-soup/llm-router';
@@ -46,6 +48,7 @@ export class CommandRouter {
   private sessionManager?: SessionManager;
   private soupService?: SoupService;
   private llmRouter?: LLMRouter;
+  private undercoverHandler?: UndercoverHandler;
 
   constructor(
     configService: ConfigService,
@@ -86,7 +89,6 @@ export class CommandRouter {
     // 其他游戏占位指令
     this.registry.register(PlaceholderHandler.make('r', ['roll'], '骰子功能', 3));
     this.registry.register(PlaceholderHandler.make('avalon.start', ['avalon'], '阿瓦隆桌游', 3));
-    this.registry.register(PlaceholderHandler.make('undercover.start', ['undercover', '卧底'], '谁是卧底桌游', 3));
     this.registry.register(PlaceholderHandler.make('coc.start', ['coc'], '跑团（CoC 7th）', 4));
     this.registry.register(PlaceholderHandler.make('card.show', ['card'], '角色卡查询', 4));
     this.registry.register(PlaceholderHandler.make('module.upload', ['module'], '模组上传', 4));
@@ -97,6 +99,54 @@ export class CommandRouter {
     this.registry.register(new StatsHandler(this.soupService));
     this.registry.register(new SoupHandler(this.sessionManager, this.soupService, this.llmRouter));
     this.registry.register(new StopHandler(this.sessionManager));
+  }
+
+  /** 注入桌游处理器并注册相关指令（在 setGameServices 之后调用） */
+  setBoardGameHandlers(undercoverHandler: UndercoverHandler): void {
+    this.undercoverHandler = undercoverHandler;
+    this.registerBoardGameHandlers();
+  }
+
+  private registerBoardGameHandlers(): void {
+    if (!this.sessionManager || !this.undercoverHandler) return;
+    this.registry.register(this.undercoverHandler);
+    for (const cmd of ['join', 'leave', 'ready', 'vote', 'kick'] as const) {
+      this.registry.register(new BoardGameCommonHandler(cmd, this.sessionManager, this.undercoverHandler));
+    }
+  }
+
+  /**
+   * 处理桌游发言阶段的非指令群消息。
+   * 在 handle() 返回 false 后由外层调用。
+   * @returns true 表示已分发给游戏 handler，false 表示无活跃桌游需要处理
+   */
+  async handleBoardGameMessage(message: NormalizedMessage): Promise<boolean> {
+    if (!this.sessionManager || !this.undercoverHandler) return false;
+    if (message.channel.type !== 'group') return false;
+
+    const groupId = message.channel.groupId;
+    const roomId = await this.sessionManager.getRoomIdByGroupId(groupId, 'qq');
+    if (!roomId) return false;
+
+    const session = await this.sessionManager.getActiveSessionByRoom(roomId);
+    if (!session || session.state !== 'running') return false;
+
+    const text = message.segments
+      .filter((s): s is { type: 'text'; text: string } => s.type === 'text')
+      .map((s) => s.text)
+      .join('')
+      .trim();
+    if (!text) return false;
+
+    const senderQQ = message.channel.userId;
+    const ctx = this.buildContext(message, '', text, [], senderQQ);
+
+    if (session.gameType === 'undercover') {
+      await this.undercoverHandler.onGroupMessage(ctx, session.id, text);
+      return true;
+    }
+
+    return false;
   }
 
   // ── 消息分发入口 ──────────────────────────────────────────────────────────

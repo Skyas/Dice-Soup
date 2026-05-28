@@ -53,7 +53,7 @@ async function main(): Promise<void> {
 
   // ── 3. Bootstrap DI 容器 ─────────────────────────────────────────────────
 
-  const { configService, auditService, oneBotAdapter, commandRouter, soupService, llmRouter, sessionManager } =
+  const { configService, auditService, oneBotAdapter, commandRouter, soupService, undercoverService, llmRouter, sessionManager } =
     await bootstrap();
 
   // ── 3a. 清理残留过期会话 + 孤儿成员锁（服务重启后防止用户被锁） ──────────
@@ -104,6 +104,7 @@ async function main(): Promise<void> {
     auditService,
     oneBotAdapter,
     soupService,
+    undercoverService,
     llmRouter,
     jwtSecret,
     isDev,
@@ -164,11 +165,14 @@ async function main(): Promise<void> {
     // 指令路由
     const handled = await commandRouter.handle(message);
     if (!handled) {
-      // 非指令、非越狱：Phase 1 不做 NL 路由，静默忽略
-      log.debug(
-        { channel: message.channel },
-        '[router] 非指令消息，Phase 1 静默忽略',
-      );
+      // 非指令消息：尝试桌游发言阶段路由（谁是卧底等）
+      const boardGameHandled = await commandRouter.handleBoardGameMessage(message);
+      if (!boardGameHandled) {
+        log.debug(
+          { channel: message.channel },
+          '[router] 非指令消息，Phase 1 静默忽略',
+        );
+      }
     }
   });
 

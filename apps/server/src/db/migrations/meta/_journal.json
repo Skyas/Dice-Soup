@@ -16,5 +16,12 @@
       "tag": "0001_phase2_soup",
       "breakpoints": true
     }
+    ,{
+      "idx": 2,
+      "version": "7",
+      "when": 1748800000000,
+      "tag": "0002_phase3_undercover",
+      "breakpoints": true
+    }
   ]
 }

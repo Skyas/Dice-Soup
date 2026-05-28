@@ -20,7 +20,9 @@ import { AuditService } from '../services/audit-service';
 import { UserService } from '../services/user-service';
 import { SoupService } from '../services/soup-service';
 import { SessionManager } from '../services/session-manager';
+import { UndercoverService } from '../services/undercover-service';
 import { OneBotAdapter } from '../adapters/onebot-adapter';
+import { UndercoverHandler } from '../commands/handlers/undercover';
 import { CommandRouter } from '../commands/router';
 import { getDatabase } from '../db/client';
 import { createLogger } from '@dice-soup/logger';
@@ -40,6 +42,7 @@ export async function bootstrap(): Promise<{
   userService: UserService;
   soupService: SoupService;
   sessionManager: SessionManager;
+  undercoverService: UndercoverService;
   oneBotClient: OneBotClient;
   oneBotAdapter: OneBotAdapter;
   commandRouter: CommandRouter;
@@ -109,8 +112,16 @@ export async function bootstrap(): Promise<{
     log.info('[di] llm.task_routing 热更新已同步到 LLMRouter');
   });
 
+  // ── 8a. UndercoverService + UndercoverHandler ─────────────────────────────
+  const undercoverService = new UndercoverService(getDatabase());
+  await undercoverService.seedWordPairs();
+
+  const undercoverHandler = new UndercoverHandler(sessionManager, undercoverService);
+  undercoverHandler.setAdapter(oneBotAdapter);
+
   // ── 注入游戏服务到 CommandRouter ──────────────────────────────────────────
   commandRouter.setGameServices(sessionManager, soupService, llmRouter);
+  commandRouter.setBoardGameHandlers(undercoverHandler);
 
   log.info('DI container ready');
 
@@ -120,6 +131,7 @@ export async function bootstrap(): Promise<{
     userService,
     soupService,
     sessionManager,
+    undercoverService,
     oneBotClient,
     oneBotAdapter,
     commandRouter,

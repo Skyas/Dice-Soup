@@ -36,14 +36,17 @@
     <template v-else>
       <!-- ── Provider 配置 ─────────────────────────────────────── -->
       <div class="ds-card flush">
-        <div class="ds-card-head">
-          <DsIcon name="lightning" :size="15" style="color:var(--accent);" />
-          <div class="title">{{ t('llmConfig.providers.title') }}</div>
-          <div class="sub">{{ t('llmConfig.providers.sub') }}</div>
-          <div class="spacer" />
-          <button class="btn primary" style="padding:4px 12px; font-size:12px;" @click="openAddProvider">
-            + {{ t('llmConfig.providers.add') }}
-          </button>
+        <div class="config-section-head">
+          <span class="config-category-badge llm">LLM</span>
+          <div>
+            <div style="font-size:13px; font-weight:600; color:var(--fg-primary); margin-bottom:1px;">{{ t('llmConfig.providers.title') }}</div>
+            <div class="section-title">{{ t('llmConfig.providers.sub') }}</div>
+          </div>
+          <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+            <button class="btn primary" style="padding:4px 12px; font-size:12px;" @click="openAddProvider">
+              + {{ t('llmConfig.providers.add') }}
+            </button>
+          </div>
         </div>
 
         <!-- Default provider selector -->
@@ -112,36 +115,48 @@
 
       <!-- ── 任务路由 ──────────────────────────────────────────── -->
       <div class="ds-card flush">
-        <div class="ds-card-head">
-          <DsIcon name="stats" :size="15" style="color:var(--accent);" />
-          <div class="title">{{ t('llmConfig.routing.title') }}</div>
-          <div class="sub">{{ t('llmConfig.routing.sub') }}</div>
-          <div class="spacer" />
-          <button class="btn primary" style="padding:4px 12px; font-size:12px;" @click="saveAllRouting">
-            {{ t('llmConfig.routing.saveAll') }}
-          </button>
+        <div class="config-section-head">
+          <span class="config-category-badge platform">路由</span>
+          <div>
+            <div style="font-size:13px; font-weight:600; color:var(--fg-primary); margin-bottom:1px;">{{ t('llmConfig.routing.title') }}</div>
+            <div class="section-title">{{ t('llmConfig.routing.sub') }}</div>
+          </div>
+          <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+            <button class="btn primary" style="padding:4px 12px; font-size:12px;" @click="saveAllRouting">
+              {{ t('llmConfig.routing.saveAll') }}
+            </button>
+          </div>
         </div>
 
         <div style="padding:0 0 8px;">
-          <div
-            v-for="task in TASK_TYPES"
-            :key="task"
-            class="routing-row"
-          >
-            <div class="routing-task">
-              <div class="routing-task-name">{{ t(`llmConfig.tasks.${task}`) }}</div>
-              <div class="routing-task-key">{{ task }}</div>
+          <template v-for="group in TASK_GROUPS" :key="group.id">
+            <!-- Group header -->
+            <div class="routing-group-head">
+              <span :class="['config-category-badge', group.badgeClass]">{{ group.label }}</span>
+              <span v-if="group.note" class="routing-group-note">{{ group.note }}</span>
             </div>
-            <div class="routing-desc">{{ t(`llmConfig.taskDescs.${task}`) }}</div>
-            <div class="routing-model">
-              <n-input
-                v-model:value="taskRouting[task]"
-                size="small"
-                :placeholder="t('llmConfig.routing.placeholder')"
-                style="width:200px;"
-              />
+            <!-- Group task rows -->
+            <div
+              v-for="task in group.tasks"
+              :key="task"
+              class="routing-row"
+              :class="{ 'routing-row-dim': !!group.note }"
+            >
+              <div class="routing-task">
+                <div class="routing-task-name">{{ t(`llmConfig.tasks.${task}`) }}</div>
+                <div class="routing-task-key">{{ task }}</div>
+              </div>
+              <div class="routing-desc">{{ t(`llmConfig.taskDescs.${task}`) }}</div>
+              <div class="routing-model">
+                <n-input
+                  v-model:value="taskRouting[task]"
+                  size="small"
+                  :placeholder="t('llmConfig.routing.placeholder')"
+                  style="width:200px;"
+                />
+              </div>
             </div>
-          </div>
+          </template>
         </div>
       </div>
     </template>
@@ -251,17 +266,37 @@ const { t } = useI18n()
 const message = useMessage()
 const loading = ref(false)
 
-const TASK_TYPES = [
-  'soup_judge',
-  'soup_restore',
-  'puzzle_extract_metadata',
-  'intent_parse',
-  'dice_nl_parse',
-  'game_arbitrate',
-  'trpg_narrate',
-  'trpg_npc',
-  'summary',
-] as const
+interface TaskGroup {
+  id: string
+  label: string
+  badgeClass: string
+  tasks: string[]
+  note?: string
+}
+
+const TASK_GROUPS: TaskGroup[] = [
+  {
+    id: 'soup',
+    label: '海龟汤',
+    badgeClass: 'llm',
+    tasks: ['soup_judge', 'soup_restore', 'puzzle_extract_metadata', 'summary'],
+  },
+  {
+    id: 'general',
+    label: '通用',
+    badgeClass: 'ui',
+    tasks: ['intent_parse', 'dice_nl_parse'],
+  },
+  {
+    id: 'future',
+    label: '桌游 / 跑团',
+    badgeClass: 'platform',
+    tasks: ['game_arbitrate', 'trpg_narrate', 'trpg_npc'],
+    note: '功能待开发，暂可预设路由',
+  },
+]
+
+const TASK_TYPES = TASK_GROUPS.flatMap((g) => g.tasks)
 
 interface Provider {
   id: string
@@ -624,16 +659,31 @@ onUnmounted(clearReconnectTimer)
   color: var(--warning);
 }
 
+.routing-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 6px;
+  border-top: 1px solid var(--line);
+}
+.routing-group-head:first-of-type { border-top: none; padding-top: 8px; }
+.routing-group-note {
+  font-size: 11px;
+  color: var(--fg-faint);
+  font-family: var(--font-mono);
+}
+
 .routing-row {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px 14px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--line);
   transition: background 120ms;
 }
 .routing-row:last-child { border-bottom: 0; }
 .routing-row:hover { background: var(--bg-hover); }
+.routing-row-dim { opacity: 0.55; }
 
 .routing-task { width: 130px; flex-shrink: 0; }
 .routing-task-name { font-size: 13px; font-weight: 500; color: var(--fg-primary); }

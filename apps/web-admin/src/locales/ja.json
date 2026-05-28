@@ -11,6 +11,8 @@
       "gameLogs": "ゲーム記録",
       "sessions": "ゲームセッション",
       "puzzles": "パズルライブラリ",
+      "undercoverWords": "スパイ単語帳",
+      "undercoverRecords": "スパイ記録",
       "llmConfig": "AI 設定",
       "config": "設定",
       "systemLogs": "システムログ",

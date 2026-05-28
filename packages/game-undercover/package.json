@@ -1,0 +1,21 @@
+{
+  "name": "@dice-soup/game-undercover",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Who is the Undercover (谁是卧底) board game module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dice-soup/game-common": "workspace:*",
+    "@dice-soup/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.2"
+  }
+}

@@ -219,6 +219,47 @@ export const soupPlayRecords = sqliteTable(
   }),
 );
 
+// ─── undercover_words（§4.2） ─────────────────────────────────────────────────
+
+export const undercoverWords = sqliteTable(
+  'undercover_words',
+  {
+    id: text('id').primaryKey().notNull(),
+    normalWord: text('normal_word').notNull(),
+    undercoverWord: text('undercover_word').notNull(),
+    category: text('category').notNull().default('general'),
+    difficulty: text('difficulty').notNull().default('medium'),
+    source: text('source').notNull().default('seed'),
+    state: text('state').notNull().default('active'),
+    createdBy: text('created_by').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => ({
+    idxState: index('idx_undercover_words_state').on(table.state),
+    idxCategory: index('idx_undercover_words_category').on(table.category),
+  }),
+);
+
+// ─── undercover_play_records（§9.1） ──────────────────────────────────────────
+
+export const undercoverPlayRecords = sqliteTable(
+  'undercover_play_records',
+  {
+    id: text('id').primaryKey().notNull(),
+    userQq: text('user_qq').notNull(),
+    sessionId: text('session_id').notNull(),
+    wordPairId: text('word_pair_id').notNull(),
+    role: text('role').notNull(),         // 'civilian' | 'undercover' | 'blank'
+    result: text('result').notNull(),     // 'win' | 'lose'
+    survivedRounds: integer('survived_rounds').notNull(),
+    playedAt: integer('played_at').notNull(),
+  },
+  (table) => ({
+    idxUser: index('idx_undercover_records_user').on(table.userQq),
+    idxSession: index('idx_undercover_records_session').on(table.sessionId),
+  }),
+);
+
 // ─── 类型推导（Drizzle 自动推导，供 TS 使用） ─────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -241,3 +282,8 @@ export type SoupPuzzle = typeof soupPuzzles.$inferSelect;
 export type NewSoupPuzzle = typeof soupPuzzles.$inferInsert;
 export type SoupPlayRecord = typeof soupPlayRecords.$inferSelect;
 export type NewSoupPlayRecord = typeof soupPlayRecords.$inferInsert;
+
+export type UndercoverWord = typeof undercoverWords.$inferSelect;
+export type NewUndercoverWord = typeof undercoverWords.$inferInsert;
+export type UndercoverPlayRecord = typeof undercoverPlayRecords.$inferSelect;
+export type NewUndercoverPlayRecord = typeof undercoverPlayRecords.$inferInsert;

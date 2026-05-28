@@ -1,0 +1,17 @@
+/**
+ * @module game-undercover/errors
+ * UNDERCOVER_* 错误码。
+ */
+
+export const UndercoverErrorCodes = {
+  NO_WORD_PAIRS: 'UNDERCOVER_NO_WORD_PAIRS',
+  NOT_IN_GAME: 'UNDERCOVER_NOT_IN_GAME',
+  WRONG_PHASE: 'UNDERCOVER_WRONG_PHASE',
+  NOT_YOUR_TURN: 'UNDERCOVER_NOT_YOUR_TURN',
+  ALREADY_VOTED: 'UNDERCOVER_ALREADY_VOTED',
+  INVALID_VOTE_TARGET: 'UNDERCOVER_INVALID_VOTE_TARGET',
+  PLAYER_ELIMINATED: 'UNDERCOVER_PLAYER_ELIMINATED',
+  GAME_ALREADY_ENDED: 'UNDERCOVER_GAME_ALREADY_ENDED',
+} as const;
+
+export type UndercoverErrorCode = (typeof UndercoverErrorCodes)[keyof typeof UndercoverErrorCodes];

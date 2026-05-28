@@ -46,7 +46,7 @@ export class SessionManager {
   // ── 会话创建 ────────────────────────────────────────────────────────────────
 
   /**
-   * 创建一个海龟汤会话（群级 + 用户级互斥）。
+   * 创建一个游戏会话（群级 + 用户级互斥）。
    * 返回新建的 sessionId，或冲突错误信息。
    */
   async createSession(
@@ -54,6 +54,7 @@ export class SessionManager {
     platform: string,
     initiatorQQ: string,
     initialSnapshot: Record<string, unknown>,
+    gameType = 'soup',
   ): Promise<{ ok: true; sessionId: string } | { ok: false; reason: string }> {
     return this.withRoomLock(groupId, async () => {
       // 确保 room 记录存在
@@ -62,7 +63,8 @@ export class SessionManager {
       // 群级互斥检查
       const existingSession = await this.getActiveSessionByRoom(roomId);
       if (existingSession) {
-        return { ok: false as const, reason: '该群已有一场海龟汤进行中，请先结束当前游戏' };
+        const gameLabel = existingSession.gameType === 'soup' ? '海龟汤' : existingSession.gameType === 'undercover' ? '谁是卧底' : '游戏';
+        return { ok: false as const, reason: `该群已有一场${gameLabel}进行中，请先结束当前游戏` };
       }
 
       // 用户级互斥检查
@@ -88,7 +90,7 @@ export class SessionManager {
         await this.db.insert(gameSessions).values({
           id: sessionId,
           roomId,
-          gameType: 'soup',
+          gameType,
           state: 'setup',
           createdBy: initiatorQQ,
           createdAt: now,

@@ -53,6 +53,12 @@ importers:
 
   apps/server:
     dependencies:
+      '@dice-soup/game-common':
+        specifier: workspace:*
+        version: link:../../packages/game-common
+      '@dice-soup/game-undercover':
+        specifier: workspace:*
+        version: link:../../packages/game-undercover
       '@dice-soup/llm-router':
         specifier: workspace:*
         version: link:../../packages/llm-router
@@ -166,6 +172,35 @@ importers:
       vue-tsc:
         specifier: ^2.0.11
         version: 2.2.12(typescript@5.9.3)
+
+  packages/game-common:
+    dependencies:
+      '@dice-soup/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.41
+      typescript:
+        specifier: ^5.5.2
+        version: 5.9.3
+
+  packages/game-undercover:
+    dependencies:
+      '@dice-soup/game-common':
+        specifier: workspace:*
+        version: link:../game-common
+      '@dice-soup/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.41
+      typescript:
+        specifier: ^5.5.2
+        version: 5.9.3
 
   packages/llm-router:
     dependencies:

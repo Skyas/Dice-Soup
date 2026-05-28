@@ -127,58 +127,45 @@ function switchLocale(loc: Locale) { setLocale(loc) }
 // ── Nav structure ─────────────────────────────────────────────
 const NAV = [
   { group: 'nav.groups.overview', items: [
-    { id: 'dashboard',   route: 'Dashboard',  label: 'nav.items.dashboard',  icon: 'dashboard' },
+    { id: 'dashboard',         route: 'Dashboard',       label: 'nav.items.dashboard',       icon: 'dashboard' },
   ]},
   { group: 'nav.groups.operations', items: [
-    { id: 'logs',        route: 'GameLogs',   label: 'nav.items.gameLogs',   icon: 'scroll' },
-    { id: 'sessions',    route: 'Sessions',   label: 'nav.items.sessions',   icon: 'sessions', soon: true, disabled: true },
-    { id: 'users',       route: 'Users',      label: 'nav.items.users',      icon: 'users',    soon: true, disabled: true },
+    { id: 'logs',              route: 'GameLogs',        label: 'nav.items.gameLogs',        icon: 'scroll' },
+    { id: 'users',             route: 'Users',           label: 'nav.items.users',           icon: 'users',    soon: true, disabled: true },
   ]},
   { group: 'nav.groups.content', items: [
-    { id: 'puzzles',     route: 'Puzzles',    label: 'nav.items.puzzles',    icon: 'soup' },
-    { id: 'content',     route: 'Content',    label: 'nav.items.content',    icon: 'book',     soon: true, disabled: true },
-  ]},
-  { group: 'nav.groups.modules', items: [
-    { id: 'dice',        route: 'Dice',       label: 'nav.items.dice',       icon: 'dice',     soon: true, disabled: true },
-    { id: 'boardgame',   route: 'BoardGame',  label: 'nav.items.boardGame',  icon: 'card',     soon: true, disabled: true },
-    { id: 'trpg',        route: 'Trpg',       label: 'nav.items.trpg',       icon: 'book',     soon: true, disabled: true },
+    { id: 'puzzles',           route: 'Puzzles',         label: 'nav.items.puzzles',         icon: 'soup' },
+    { id: 'undercover-words',  route: 'UndercoverWords', label: 'nav.items.undercoverWords', icon: 'card' },
   ]},
   { group: 'nav.groups.system', items: [
-    { id: 'llm-config',  route: 'LLMConfig',  label: 'nav.items.llmConfig',  icon: 'lightning' },
-    { id: 'prompts',     route: 'Prompts',    label: 'nav.items.prompts',    icon: 'prompt' },
-    { id: 'config',      route: 'Config',     label: 'nav.items.config',     icon: 'settings' },
-    { id: 'system-logs', route: 'SystemLogs', label: 'nav.items.systemLogs', icon: 'terminal' },
-    { id: 'audit',       route: 'Audit',      label: 'nav.items.audit',      icon: 'audit',    soon: true, disabled: true },
+    { id: 'llm-config',        route: 'LLMConfig',       label: 'nav.items.llmConfig',       icon: 'lightning' },
+    { id: 'prompts',           route: 'Prompts',         label: 'nav.items.prompts',         icon: 'prompt' },
+    { id: 'config',            route: 'Config',          label: 'nav.items.config',          icon: 'settings' },
+    { id: 'system-logs',       route: 'SystemLogs',      label: 'nav.items.systemLogs',      icon: 'terminal' },
   ]},
 ]
 
 const CRUMB_MAP = computed<Record<string, string[]>>(() => ({
   // 总览
-  Dashboard:  [t('nav.groups.overview'),    t('nav.items.dashboard')],
+  Dashboard:       [t('nav.groups.overview'),    t('nav.items.dashboard')],
   // 运营
-  GameLogs:   [t('nav.groups.operations'),  t('nav.items.gameLogs')],
-  Sessions:   [t('nav.groups.operations'),  t('nav.items.sessions')],
-  Users:      [t('nav.groups.operations'),  t('nav.items.users')],
-  // 内容库
-  Puzzles:    [t('nav.groups.content'),     t('nav.items.puzzles')],
-  Content:    [t('nav.groups.content'),     t('nav.items.content')],
-  // 游戏模块
-  Dice:       [t('nav.groups.modules'),     t('nav.items.dice')],
-  BoardGame:  [t('nav.groups.modules'),     t('nav.items.boardGame')],
-  Trpg:       [t('nav.groups.modules'),     t('nav.items.trpg')],
+  GameLogs:        [t('nav.groups.operations'),  t('nav.items.gameLogs')],
+  Users:           [t('nav.groups.operations'),  t('nav.items.users')],
+  // 内容管理
+  Puzzles:         [t('nav.groups.content'),     t('nav.items.puzzles')],
+  UndercoverWords: [t('nav.groups.content'),     t('nav.items.undercoverWords')],
   // 系统
-  LLMConfig:  [t('nav.groups.system'),      t('nav.items.llmConfig')],
-  Prompts:    [t('nav.groups.system'),      t('nav.items.prompts')],
-  Config:     [t('nav.groups.system'),      t('nav.items.config')],
-  SystemLogs: [t('nav.groups.system'),      t('nav.items.systemLogs')],
-  Audit:      [t('nav.groups.system'),      t('nav.items.audit')],
+  LLMConfig:       [t('nav.groups.system'),      t('nav.items.llmConfig')],
+  Prompts:         [t('nav.groups.system'),      t('nav.items.prompts')],
+  Config:          [t('nav.groups.system'),      t('nav.items.config')],
+  SystemLogs:      [t('nav.groups.system'),      t('nav.items.systemLogs')],
 }))
 
 const activeKey = computed(() => {
   const name = route.name as string
-  if (name === 'SystemLogs') return 'system-logs'
-  if (name === 'LLMConfig')  return 'llm-config'
-  if (name === 'BoardGame')  return 'boardgame'
+  if (name === 'SystemLogs')      return 'system-logs'
+  if (name === 'LLMConfig')       return 'llm-config'
+  if (name === 'UndercoverWords') return 'undercover-words'
   return name?.toLowerCase() ?? 'dashboard'
 })
 

@@ -317,6 +317,15 @@ export const DEFAULT_CONFIGS: DefaultConfig[] = [
     category: 'prompt',
   },
 
+  // ── 谁是卧底 ──
+  {
+    key: 'undercover.enable_blank',
+    value: true,
+    valueType: 'boolean',
+    description: '谁是卧底：是否启用白板角色（仅在人数 ≥ 5 时生效）',
+    category: 'game',
+  },
+
   // ── 平台 ──
   {
     key: 'onebot.ws_port',

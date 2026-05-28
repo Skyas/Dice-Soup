@@ -1,0 +1,20 @@
+{
+  "name": "@dice-soup/game-common",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Common board game components: lobby, voting, round state machine",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dice-soup/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.2"
+  }
+}

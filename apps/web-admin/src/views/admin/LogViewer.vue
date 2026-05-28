@@ -174,8 +174,19 @@ function connectWs() {
   }
   ws.onmessage = (event) => {
     try {
-      const entry = JSON.parse(event.data) as LogEntry
-      addLog(entry)
+      const msg = JSON.parse(event.data)
+      if (msg.type === 'history' && Array.isArray(msg.entries)) {
+        // 历史批量推送：{type: 'history', entries: LogEntry[]}
+        for (const entry of msg.entries) {
+          addLog(entry as LogEntry)
+        }
+      } else if (msg.type === 'log' && msg.entry) {
+        // 单条实时推送：{type: 'log', entry: LogEntry}
+        addLog(msg.entry as LogEntry)
+      } else {
+        // 兜底：直接当作 LogEntry 处理
+        addLog(msg as LogEntry)
+      }
     } catch {
       // 忽略解析失败
     }

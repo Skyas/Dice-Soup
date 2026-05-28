@@ -11,6 +11,8 @@
       "gameLogs": "Game Logs",
       "sessions": "Sessions",
       "puzzles": "Puzzle Library",
+      "undercoverWords": "Undercover Words",
+      "undercoverRecords": "Undercover Records",
       "llmConfig": "AI Config",
       "config": "Settings",
       "systemLogs": "System Logs",
