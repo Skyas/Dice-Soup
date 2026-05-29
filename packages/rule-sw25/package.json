@@ -1,0 +1,22 @@
+{
+  "name": "@dice-soup/rule-sw25",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sword World 2.5 规则插件（行为判定、威力骰、临界值、威力表）",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@dice-soup/dice-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.2",
+    "vitest": "^1.6.0"
+  }
+}

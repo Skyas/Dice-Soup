@@ -60,8 +60,7 @@ const router = createRouter({
         {
           path: 'dice',
           name: 'Dice',
-          component: () => import('@/views/admin/PlaceholderView.vue'),
-          props: { title: '骰子', phase: 2 },
+          component: () => import('@/views/admin/DiceView.vue'),
         },
         {
           path: 'board-game',

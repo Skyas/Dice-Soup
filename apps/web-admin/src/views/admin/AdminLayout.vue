@@ -139,7 +139,7 @@ const NAV = [
     { id: 'content',     route: 'Content',    label: 'nav.items.content',    icon: 'book',     soon: true, disabled: true },
   ]},
   { group: 'nav.groups.modules', items: [
-    { id: 'dice',        route: 'Dice',       label: 'nav.items.dice',       icon: 'dice',     soon: true, disabled: true },
+    { id: 'dice',        route: 'Dice',       label: 'nav.items.dice',       icon: 'dice' },
     { id: 'boardgame',   route: 'BoardGame',  label: 'nav.items.boardGame',  icon: 'card',     soon: true, disabled: true },
     { id: 'trpg',        route: 'Trpg',       label: 'nav.items.trpg',       icon: 'book',     soon: true, disabled: true },
   ]},

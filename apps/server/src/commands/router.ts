@@ -31,6 +31,15 @@ import { PlaceholderHandler } from './handlers/placeholder';
 import { SoupHandler } from './handlers/soup';
 import { StopHandler } from './handlers/stop';
 import { RestartHandler } from './handlers/restart';
+import {
+  RollHandler,
+  HiddenRollHandler,
+  CocRollHandler,
+  SanCheckHandler,
+  GrowthHandler,
+  CocChargenHandler,
+  SetCocHandler,
+} from './handlers/dice';
 import type { SessionManager } from '../services/session-manager';
 import type { SoupService } from '../services/soup-service';
 import type { LLMRouter } from '@dice-soup/llm-router';
@@ -83,11 +92,18 @@ export class CommandRouter {
     this.registry.register(new RestartHandler());
     // StatsHandler 需要 SoupService，在 registerGameHandlers() 中注册
 
+    // 骰子指令
+    this.registry.register(new RollHandler());
+    this.registry.register(new HiddenRollHandler());
+    this.registry.register(new CocRollHandler());
+    this.registry.register(new SanCheckHandler());
+    this.registry.register(new GrowthHandler());
+    this.registry.register(new CocChargenHandler());
+    this.registry.register(new SetCocHandler());
+
     // 其他游戏占位指令
-    this.registry.register(PlaceholderHandler.make('r', ['roll'], '骰子功能', 3));
     this.registry.register(PlaceholderHandler.make('avalon.start', ['avalon'], '阿瓦隆桌游', 3));
     this.registry.register(PlaceholderHandler.make('undercover.start', ['undercover', '卧底'], '谁是卧底桌游', 3));
-    this.registry.register(PlaceholderHandler.make('coc.start', ['coc'], '跑团（CoC 7th）', 4));
     this.registry.register(PlaceholderHandler.make('card.show', ['card'], '角色卡查询', 4));
     this.registry.register(PlaceholderHandler.make('module.upload', ['module'], '模组上传', 4));
   }

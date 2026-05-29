@@ -1,0 +1,20 @@
+{
+  "name": "@dice-soup/dice-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "零业务依赖的纯骰子引擎：词法分析、语法分析、AST 求值、格式化",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.2",
+    "vitest": "^1.6.0"
+  }
+}

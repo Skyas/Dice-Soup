@@ -20,6 +20,7 @@ import { adminPuzzlesRoutes } from './routes/admin/puzzles';
 import { adminSecretsRoutes } from './routes/admin/secrets';
 import { adminServerControlRoutes } from './routes/admin/server-control';
 import { adminGameLogsRoutes } from './routes/admin/game-logs';
+import { adminDiceRoutes } from './routes/admin/dice';
 import { getDatabase } from './db/client';
 import type { ConfigService } from './config/config-service';
 import type { AuditService } from './services/audit-service';
@@ -150,6 +151,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
 
     // 游戏对局记录
     await adminGameLogsRoutes(app, { db: getDatabase() });
+
+    // 骰子调试
+    await adminDiceRoutes(app);
   });
 
   return fastify;

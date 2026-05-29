@@ -53,6 +53,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@dice-soup/dice-engine':
+        specifier: workspace:*
+        version: link:../../packages/dice-engine
       '@dice-soup/llm-router':
         specifier: workspace:*
         version: link:../../packages/llm-router
@@ -62,6 +65,12 @@ importers:
       '@dice-soup/onebot-client':
         specifier: workspace:*
         version: link:../../packages/onebot-client
+      '@dice-soup/rule-coc7':
+        specifier: workspace:*
+        version: link:../../packages/rule-coc7
+      '@dice-soup/rule-sw25':
+        specifier: workspace:*
+        version: link:../../packages/rule-sw25
       '@dice-soup/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -167,6 +176,18 @@ importers:
         specifier: ^2.0.11
         version: 2.2.12(typescript@5.9.3)
 
+  packages/dice-engine:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.41
+      typescript:
+        specifier: ^5.5.2
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.41)
+
   packages/llm-router:
     dependencies:
       '@dice-soup/logger':
@@ -229,6 +250,38 @@ importers:
       '@types/ws':
         specifier: ^8.5.11
         version: 8.18.1
+      typescript:
+        specifier: ^5.5.2
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.41)
+
+  packages/rule-coc7:
+    dependencies:
+      '@dice-soup/dice-engine':
+        specifier: workspace:*
+        version: link:../dice-engine
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.41
+      typescript:
+        specifier: ^5.5.2
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.41)
+
+  packages/rule-sw25:
+    dependencies:
+      '@dice-soup/dice-engine':
+        specifier: workspace:*
+        version: link:../dice-engine
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.41
       typescript:
         specifier: ^5.5.2
         version: 5.9.3
